@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kirsten Café — Sistema de Eventos</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#F9F5EF;--cream2:#F2EBE0;--cream3:#E8DDD0;--cream4:#DDD0C0;
+  --espresso:#1A0A00;--coffee:#3D1C02;--caramel:#8B5E3C;
+  --gold:#C9973A;--gold2:#E8B95A;--sage:#4A6741;--sage2:#6A9B60;
+  --red:#C0392B;--red2:#E74C3C;--blue:#1A4FA0;
+  --text:#2C1A0E;--muted:#7A5C46;--muted2:#A08060;
+  --white:#FFFFFF;--border:#D4C4B0;--border2:#C4B09A;
+  --shadow:0 2px 12px rgba(26,10,0,0.08);--shadow-lg:0 8px 32px rgba(26,10,0,0.14);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+nav{background:var(--espresso);display:flex;align-items:center;position:sticky;top:0;z-index:200;height:52px;border-bottom:2px solid var(--gold);padding:0 20px;overflow-x:auto}
+nav::-webkit-scrollbar{display:none}
+.nav-brand{font-family:'Playfair Display',serif;color:var(--gold2);font-size:17px;font-weight:700;margin-right:24px;white-space:nowrap;flex-shrink:0}
+.nav-brand span{color:rgba(249,245,239,.6);font-weight:400}
+.nav-tabs{display:flex;gap:1px;flex:1}
+.nav-tab{background:none;border:none;color:rgba(249,245,239,.5);padding:0 13px;height:52px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;transition:all .18s;border-bottom:2.5px solid transparent;white-space:nowrap;flex-shrink:0}
+.nav-tab:hover{color:var(--cream2);background:rgba(255,255,255,.06)}
+.nav-tab.active{color:var(--gold2);border-bottom-color:var(--gold);background:rgba(201,151,58,.09)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;padding-left:12px}
+.badge{background:var(--red);color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700}
+.page{display:none;padding:24px;max-width:1120px;margin:0 auto;animation:fadeUp .2s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.page-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--coffee)}
+.page-sub{color:var(--muted);font-size:13px;margin-top:2px;margin-bottom:22px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 22px;box-shadow:var(--shadow);margin-bottom:14px}
+.card-title{font-family:'Playfair Display',serif;font-size:14.5px;font-weight:600;color:var(--coffee);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--cream3);display:flex;align-items:center;justify-content:space-between}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
+.stat-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.stat-value{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--coffee);line-height:1.2}
+.stat-value.g{color:var(--sage)}.stat-value.gold{color:var(--gold)}.stat-value.r{color:var(--red)}
+.stat-sub{font-size:11px;color:var(--muted2);margin-top:2px}
+label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+input,select,textarea{width:100%;padding:9px 11px;border:1.5px solid var(--cream3);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--white);transition:border .15s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+input[type=number]{-moz-appearance:textfield}
+.fg{margin-bottom:12px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .14s;border:none;white-space:nowrap;line-height:1}
+.btn-primary{background:var(--coffee);color:var(--cream2)}.btn-primary:hover{background:var(--espresso)}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:#b8872e}
+.btn-sage{background:var(--sage);color:#fff}.btn-sage:hover{background:#395530}
+.btn-outline{background:transparent;color:var(--coffee);border:1.5px solid var(--border)}.btn-outline:hover{background:var(--cream2)}
+.btn-danger{background:transparent;color:var(--red);border:1.5px solid #e0b0aa}.btn-danger:hover{background:#fdf0ef}
+.btn-sm{padding:5px 11px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px}
+.btn-group{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.tw{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--coffee);color:var(--cream2);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;padding:9px 13px;text-align:left;white-space:nowrap}
+td{padding:9px 13px;font-size:13px;border-bottom:1px solid var(--cream2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--cream)}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.tg{background:#e8f5e0;color:#2d6a1f}.tr{background:#fdecea;color:#c0392b}
+.tgold{background:#fef5e0;color:#8b5e1a}.tb{background:#e3effe;color:#1a4fa0}.tgray{background:#f0ece8;color:var(--muted)}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.bcard{background:var(--white);border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .18s;position:relative;user-select:none}
+.bcard:hover{border-color:var(--gold);box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.bcard.sel{border-color:var(--gold);background:#fffbf2;box-shadow:0 0 0 3px rgba(201,151,58,.15)}
+.bcard .bn{font-family:'Playfair Display',serif;font-size:13px;font-weight:600;color:var(--coffee);margin:5px 0 3px}
+.bcard .bd{font-size:11px;color:var(--muted);line-height:1.4}
+.bcard .bi{font-size:20px}
+.bcard .ck{position:absolute;top:9px;right:9px;width:18px;height:18px;background:var(--gold);border-radius:50%;display:none;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700}
+.bcard.sel .ck{display:flex}
+.prev-box{background:linear-gradient(140deg,var(--espresso) 0%,#2a0f00 100%);color:var(--cream);border-radius:14px;padding:22px;position:relative;overflow:hidden;margin-bottom:14px}
+.prev-box::after{content:'☕';position:absolute;right:16px;bottom:-10px;font-size:80px;opacity:.06;line-height:1}
+.prev-box h3{font-family:'Playfair Display',serif;font-size:17px;color:var(--gold2);margin-bottom:2px}
+.prev-box .pc{font-size:12px;opacity:.6;margin-bottom:14px}
+.prev-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px}
+.prev-row:last-child{border:none}
+.prev-total{margin-top:12px;display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid rgba(201,151,58,.4);padding-top:10px}
+.ci{background:var(--cream);border:1.5px dashed var(--border2);border-radius:10px;padding:16px;margin-bottom:14px}
+.ci-title{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:10px;font-weight:600}
+.ci-row{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}
+.ci-row.sep{border-top:1px solid var(--cream3);margin-top:6px;padding-top:8px;font-weight:600}
+.ci-row.margen{color:var(--sage);font-weight:600}
+.ci-row.total{font-family:'Playfair Display',serif;font-size:15px;color:var(--coffee);border-top:2px solid var(--gold);margin-top:6px;padding-top:8px;font-weight:700}
+.inv-alert{background:#fef8ed;border:1px solid #f0c060;border-radius:9px;padding:11px 15px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:#7a4e0a}
+.pbar{height:5px;background:var(--cream3);border-radius:3px;margin-top:5px;overflow:hidden}
+.pfill{height:5px;border-radius:3px;transition:width .5s}
+.pfill.ok{background:var(--sage2)}.pfill.low{background:var(--gold)}.pfill.danger{background:var(--red2)}
+.mo{display:none;position:fixed;inset:0;background:rgba(10,3,0,.6);z-index:500;align-items:center;justify-content:center;padding:16px}
+.mo.open{display:flex}
+.modal{background:var(--white);border-radius:16px;padding:26px;width:580px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.28);position:relative}
+.modal-wide{width:720px}
+.mc{position:absolute;top:14px;right:14px;background:var(--cream2);border:none;border-radius:50%;width:27px;height:27px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.modal-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--coffee);margin-bottom:16px}
+.pdf-doc{background:#fff;padding:32px 36px;max-width:580px;margin:0 auto;font-size:13px;color:#1a0a00;border:1px solid #e0d0c0;border-radius:10px}
+.pdf-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--gold);padding-bottom:12px;margin-bottom:18px}
+.pdf-brand{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--coffee)}
+.pdf-brand span{display:block;font-size:11px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400;margin-top:2px}
+.pdf-id{text-align:right;font-size:11px;color:var(--muted)}
+.pdf-id strong{display:block;font-size:15px;color:var(--coffee);font-family:'Playfair Display',serif}
+.pdf-section{margin-bottom:16px}
+.pdf-section h4{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid #ede0d0}
+.pdf-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dotted #ede0d0;font-size:12.5px}
+.pdf-total{display:flex;justify-content:space-between;padding:10px 0;font-size:17px;font-weight:700;font-family:'Playfair Display',serif;color:var(--coffee);border-top:2px solid var(--gold);margin-top:6px}
+.pdf-footer{text-align:center;margin-top:20px;font-size:10.5px;color:var(--muted);border-top:1px solid #ede0d0;padding-top:12px}
+.ev-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid var(--cream3);border-radius:9px;margin-bottom:8px;background:var(--white)}
+.stabs{display:flex;gap:4px;margin-bottom:18px;background:var(--cream2);padding:4px;border-radius:9px;width:fit-content}
+.stab{padding:6px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s}
+.stab.active{background:var(--white);color:var(--coffee);box-shadow:var(--shadow)}
+.rent-box{border-radius:12px;padding:18px 20px;margin-top:16px}
+.rent-box.ganancia{background:linear-gradient(135deg,#e8f5e0,#d4edca);border:1.5px solid #a0c890}
+.rent-box.perdida{background:linear-gradient(135deg,#fdecea,#f5d0cc);border:1.5px solid #e0a0a0}
+.sync-bar{background:var(--espresso);color:var(--cream2);padding:7px 20px;font-size:12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(201,151,58,.3)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#666;flex-shrink:0}
+.sync-dot.ok{background:var(--sage2)}.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite}.sync-dot.err{background:var(--red2)}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--espresso);color:var(--cream);padding:11px 18px;border-radius:9px;font-size:13px;z-index:999;transform:translateY(80px);opacity:0;transition:all .28s;box-shadow:var(--shadow-lg);border-left:3px solid var(--gold);max-width:320px}
+.toast.show{transform:translateY(0);opacity:1}
+.empty{text-align:center;padding:32px 20px;color:var(--muted2)}
+.empty-icon{font-size:36px;margin-bottom:10px;opacity:.5}
+input.hi{background:#fffbe6;border-color:var(--gold)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media print{nav,.sync-bar,.no-print{display:none!important}.page{display:block!important;padding:0}}
+@media(max-width:720px){.g2,.g3,.g4{grid-template-columns:1fr}.fr,.fr3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Sin conexión a Google Drive — datos guardados localmente</span><button class="btn btn-outline btn-xs no-print" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)" onclick="showPage('config')">Conectar Drive</button></div>
+<nav>
+  <div class="nav-brand">Kirsten <span>Café</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard')">Inicio</button>
+    <button class="nav-tab" onclick="showPage('cotizacion')">Nueva Cotización</button>
+    <button class="nav-tab" onclick="showPage('lista')">Cotizaciones</button>
+    <button class="nav-tab" onclick="showPage('evento')">Checklist Evento</button>
+    <button class="nav-tab" onclick="showPage('inventario')">Inventario</button>
+    <button class="nav-tab" onclick="showPage('recetario')">Recetario</button>
+    <button class="nav-tab" onclick="showPage('movimientos')">Movimientos</button>
+    <button class="nav-tab" onclick="showPage('config')">⚙️ Config</button>
+  </div>
+  <div class="nav-right"><span class="badge" id="badge-alertas" style="display:none">0</span></div>
+</nav>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="page-title">Panel de Control</div><div class="page-sub">Resumen de operación — Kirsten Café</div>
+  <div class="g4" style="margin-bottom:18px">
+    <div class="stat"><div class="stat-label">Cotizaciones</div><div class="stat-value gold" id="d-ncot">0</div></div>
+    <div class="stat"><div class="stat-label">Ingresos est.</div><div class="stat-value g" id="d-ing">$0</div><div class="stat-sub" id="d-ing-sub"></div></div>
+    <div class="stat"><div class="stat-label">Próximo evento</div><div class="stat-value" id="d-prox" style="font-size:13px;margin-top:4px">—</div></div>
+    <div class="stat"><div class="stat-label">Alertas inventario</div><div class="stat-value r" id="d-alerts">0</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-title">Cotizaciones recientes <button class="btn btn-outline btn-xs no-print" onclick="exportarCSV()">⬇ CSV</button></div><div id="d-recientes"></div></div>
+    <div class="card"><div class="card-title">Insumos por reponer <button class="btn btn-outline btn-xs no-print" onclick="showPage('inventario')">Ver todo</button></div><div id="d-reponer"></div></div>
+  </div>
+</div>
+
+<!-- NUEVA COTIZACIÓN -->
+<div id="page-cotizacion" class="page">
+  <div class="page-title">Nueva Cotización</div><div class="page-sub">Costos reales: insumos + personal + depreciación + operativos.</div>
+  <div class="g2" style="align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title">Datos del evento</div>
+        <div class="fr"><div class="fg"><label>Cliente / Empresa</label><input id="f-cliente" type="text" placeholder="Nombre del cliente" oninput="calcCot()"></div><div class="fg"><label>Fecha</label><input id="f-fecha" type="date" onchange="calcCot()"></div></div>
+        <div class="fr"><div class="fg"><label>Ciudad</label><input id="f-ciudad" type="text" value="Medellín"></div><div class="fg"><label>Lugar / Venue</label><input id="f-lugar" type="text" placeholder="Nombre del lugar"></div></div>
+        <div class="fr3">
+          <div class="fg"><label>Personas</label><input id="f-personas" type="number" min="1" value="100" oninput="calcCot()"></div>
+          <div class="fg"><label>Horas de servicio</label><input id="f-horas" type="number" min="1" value="4" oninput="calcCot()"></div>
+          <div class="fg"><label>Días del evento</label><input id="f-dias" type="number" min="1" value="1" oninput="calcCot()"></div>
+        </div>
+        <div class="fg"><label>Notas para el cliente</label><textarea id="f-notas" rows="2" placeholder="Incluye, condiciones, observaciones..."></textarea></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Tipo de Barra</div>
+        <div class="bgrid" id="barra-sel"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Personal del evento <button class="btn btn-outline btn-xs no-print" onclick="addPersonal()">+ Añadir</button></div>
+        <div id="personal-list"><div style="color:var(--muted2);font-size:12.5px;padding:6px 0">Sin personal añadido.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Costos operativos</div>
+        <div class="fr">
+          <div class="fg"><label>Transporte (COP)</label><input id="f-transporte" type="number" min="0" value="0" oninput="calcCot()"></div>
+          <div class="fg"><label>Imprevistos (COP)</label><input id="f-imprevistos" type="number" min="0" value="30000" oninput="calcCot()"></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label>Otros costos (COP)</label><input id="f-otros" type="number" min="0" value="0" oninput="calcCot()"></div>
+          <div class="fg"><label>Margen de ganancia (%)</label><input id="f-margen" type="number" min="0" max="300" value="35" oninput="calcCot()"></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label>Descuento al cliente (%)</label><input id="f-descuento" type="number" min="0" max="100" value="0" oninput="calcCot()"></div>
+          <div class="fg"><label>IVA</label><select id="f-iva" onchange="calcCot()"><option value="0">No aplica IVA</option><option value="0.19">Sí, incluir IVA 19%</option></select></div>
+        </div>
+      </div>
+    </div>
+    <div style="position:sticky;top:60px">
+      <div class="prev-box">
+        <h3 id="prev-barra">Selecciona una barra</h3>
+        <div class="pc" id="prev-cliente">—</div>
+        <div class="prev-row"><span>Personas</span><span id="prev-personas">—</span></div>
+        <div class="prev-row"><span>Horas</span><span id="prev-horas">—</span></div>
+        <div class="prev-total"><span style="font-size:11px;opacity:.6">TOTAL EVENTO</span><span style="font-family:'Playfair Display',serif;font-size:22px;color:var(--gold2)" id="prev-total">$0</span></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;font-size:11px;opacity:.5" id="prev-pp"></div>
+      </div>
+      <div class="ci">
+        <div class="ci-title">📊 Desglose interno de costos</div>
+        <div class="ci-row"><span>Insumos estimados</span><span id="ci-insumos">—</span></div>
+        <div class="ci-row"><span>Personal</span><span id="ci-personal">—</span></div>
+        <div class="ci-row"><span>Depreciación equipos</span><span id="ci-dep">—</span></div>
+        <div class="ci-row"><span>Transporte</span><span id="ci-trans">—</span></div>
+        <div class="ci-row"><span>Imprevistos</span><span id="ci-imp">—</span></div>
+        <div class="ci-row"><span>Otros</span><span id="ci-otros">—</span></div>
+        <div class="ci-row sep"><span>Costo operativo total</span><span id="ci-ctotal">—</span></div>
+        <div class="ci-row margen"><span id="ci-mlabel">Margen (35%)</span><span id="ci-mval">—</span></div>
+        <div class="ci-row" style="color:var(--muted)"><span>Descuento</span><span id="ci-desc">—</span></div>
+        <div class="ci-row" style="color:var(--muted)"><span>IVA</span><span id="ci-iva">—</span></div>
+        <div class="ci-row total"><span>PRECIO FINAL</span><span id="ci-final">—</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lista de compras estimada</div>
+        <div id="lista-preview"><div class="empty" style="padding:16px"><div class="empty-text" style="font-size:12px">Selecciona una barra</div></div></div>
+      </div>
+      <div class="btn-group no-print">
+        <button class="btn btn-primary" onclick="guardarCot()">💾 Guardar cotización</button>
+        <button class="btn btn-outline" onclick="verPDF()">👁 Ver PDF cliente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LISTA COTIZACIONES -->
+<div id="page-lista" class="page">
+  <div class="page-title">Cotizaciones</div><div class="page-sub">Historial con desglose de costos y margen real.</div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap">
+      <input type="text" placeholder="Buscar..." style="width:220px" oninput="renderCots(this.value)" id="q-cot">
+      <div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm no-print" onclick="exportarCSV()">⬇ CSV</button><button class="btn btn-primary btn-sm" onclick="showPage('cotizacion')">+ Nueva</button></div>
+    </div>
+    <div class="tw"><table><thead><tr><th>#</th><th>Cliente</th><th>Barra</th><th>Fecha</th><th>Personas</th><th>Costo real</th><th>Precio cobrado</th><th>Margen</th><th>Estado</th><th></th></tr></thead><tbody id="tb-cots"></tbody></table></div>
+  </div>
+</div>
+
+<!-- CHECKLIST EVENTO -->
+<div id="page-evento" class="page">
+  <div class="page-title">Checklist de Evento</div><div class="page-sub">Registra la salida de insumos, el sobrante y obtén el resultado de rentabilidad.</div>
+  <div class="card">
+    <div class="card-title">Evento</div>
+    <div class="fr">
+      <div class="fg"><label>Cotización vinculada (opcional)</label><select id="ev-cot-sel" onchange="cargarCot()"><option value="">— Sin vincular —</option></select></div>
+      <div class="fg"><label>Nombre del evento</label><input id="ev-nombre" type="text" placeholder="Ej: Lanzamiento empresa ABC"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Fecha</label><input id="ev-fecha" type="date"></div>
+      <div class="fg"><label>Precio cobrado al cliente (COP)</label><input id="ev-cobrado" type="number" placeholder="0" oninput="calcRent()"></div>
+    </div>
+  </div>
+  <div class="stabs">
+    <button class="stab active" onclick="evTab('salida')">📦 Salida de insumos</button>
+    <button class="stab" onclick="evTab('retorno')">↩ Sobrante</button>
+    <button class="stab" onclick="evTab('resultado')">📊 Resultado</button>
+  </div>
+  <div id="ev-salida">
+    <div class="card">
+      <div class="card-title">Insumos que salen al evento <button class="btn btn-outline btn-sm no-print" onclick="addEvItem()">+ Añadir ítem</button></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Ingresa la cantidad <strong>por unidad de producto</strong> (ej: 2 paquetes de café, 5 bolsas de leche, 20 paquetes de vasos).</div>
+      <div id="ev-salida-list"></div>
+    </div>
+    <div class="btn-group no-print"><button class="btn btn-primary" onclick="confirmarSalida()">✅ Confirmar salida → Sobrante</button></div>
+  </div>
+  <div id="ev-retorno" style="display:none">
+    <div class="card">
+      <div class="card-title">Sobrante al finalizar el evento</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Ingresa lo que <strong>sobró</strong> de cada ítem. Deja en 0 si se consumió todo.</div>
+      <div id="ev-retorno-list"></div>
+    </div>
+    <div class="btn-group no-print"><button class="btn btn-sage" onclick="cerrarEvento()">🏁 Cerrar evento y actualizar inventario</button><button class="btn btn-outline" onclick="evTab('salida')">← Volver</button></div>
+  </div>
+  <div id="ev-resultado" style="display:none">
+    <div class="card"><div class="card-title">Consumo real</div><div class="tw"><table><thead><tr><th>Insumo</th><th>Salió</th><th>Sobró</th><th>Consumido</th><th>Costo est.</th></tr></thead><tbody id="ev-res-tb"></tbody></table></div></div>
+    <div id="ev-rent"></div>
+    <div class="btn-group no-print"><button class="btn btn-outline" onclick="nuevoEvento()">+ Nuevo evento</button></div>
+  </div>
+</div>
+
+<!-- INVENTARIO -->
+<div id="page-inventario" class="page">
+  <div class="page-title">Inventario</div><div class="page-sub">Stock actual de insumos, maquinaria y elementos.</div>
+  <div id="inv-alertas"></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-print">
+    <button class="btn btn-outline btn-sm" onclick="filtrarInv('todos')">Todos</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarInv('Insumo')">Insumos</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarInv('Maquinaria')">Maquinaria</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarInv('Elementos')">Elementos</button>
+    <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="openMov()">+ Movimiento</button>
+    <button class="btn btn-outline btn-sm" onclick="exportarInvCSV()">⬇ CSV</button>
+  </div>
+  <div class="tw"><table><thead><tr><th>ID</th><th>Ítem</th><th>Cat.</th><th>Stock actual</th><th>Mínimo</th><th>Unidad</th><th>Costo/u</th><th>Estado</th><th></th></tr></thead><tbody id="tb-inv"></tbody></table></div>
+</div>
+
+<!-- RECETARIO -->
+<div id="page-recetario" class="page">
+  <div class="page-title">Recetario</div><div class="page-sub">Bebidas por tipo de barra. Edita en ⚙️ Configuración.</div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap" class="no-print">
+    <button class="btn btn-outline btn-sm" onclick="filtrarRec('')">Todas</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarRec('Colombiana')">Colombiana</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarRec('Italiana')">Italiana</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarRec('Filtrados')">Filtrados</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarRec('Carajillos')">Carajillos</button>
+    <button class="btn btn-outline btn-sm" onclick="filtrarRec('Infusiones')">Tés</button>
+  </div>
+  <div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Método</th><th>Rend.</th><th>Ingredientes</th><th>Costo est.</th></tr></thead><tbody id="tb-rec"></tbody></table></div>
+</div>
+
+<!-- MOVIMIENTOS -->
+<div id="page-movimientos" class="page">
+  <div class="page-title">Historial de Movimientos</div><div class="page-sub">Entradas, salidas y ajustes de inventario.</div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center" class="no-print">
+    <select id="f-mtipo" onchange="renderMovs()" style="width:190px"><option value="">Todos los tipos</option><option>COMPRA</option><option>SALIDA_EVENTO</option><option>RETORNO_EVENTO</option><option>PERDIDA</option><option>AJUSTE</option></select>
+    <input type="text" id="f-mq" placeholder="Buscar ítem..." style="width:190px" oninput="renderMovs()">
+    <button class="btn btn-danger btn-sm" onclick="limpiarMovs()" style="margin-left:auto">🗑 Limpiar</button>
+  </div>
+  <div class="tw"><table><thead><tr><th>#</th><th>Fecha</th><th>Ítem</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th><th>Notas</th></tr></thead><tbody id="tb-movs"></tbody></table></div>
+  <div id="movs-res" style="margin-top:16px"></div>
+</div>
+
+<!-- CONFIG -->
+<div id="page-config" class="page">
+  <div class="page-title">⚙️ Configuración</div><div class="page-sub">Administra insumos, recetas, personal y sincronización con Google Drive.</div>
+
+  <div class="card">
+    <div class="card-title">☁️ Google Drive — sincronización entre dispositivos</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Conecta Google Drive para compartir datos entre todos tus dispositivos. Se guarda un archivo <code>kirsten-data.json</code> en tu Drive.</p>
+    <div class="fr">
+      <div class="fg"><label>ID del archivo en Drive</label><input id="cfg-drive-id" type="text" placeholder="ID del archivo JSON"></div>
+      <div class="fg"><label>Token de acceso OAuth</label><input id="cfg-drive-token" type="password" placeholder="Token OAuth de Google"></div>
+    </div>
+    <div class="btn-group no-print">
+      <button class="btn btn-primary" onclick="guardarDrive()">Guardar configuración</button>
+      <button class="btn btn-outline" onclick="syncDrive(true)">🔄 Sincronizar ahora</button>
+      <button class="btn btn-outline" onclick="exportarBackup()">⬇ Backup JSON</button>
+      <button class="btn btn-sage" onclick="document.getElementById('imp-file').click()">⬆ Restaurar backup</button>
+    </div>
+    <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importarBackup(this)">
+    <div style="margin-top:14px;background:var(--cream);padding:14px;border-radius:8px;font-size:12.5px;color:var(--muted);line-height:1.8">
+      <strong style="color:var(--coffee)">Cómo conectar:</strong><br>
+      1. Crea un archivo vacío <code>kirsten-data.json</code> en tu Google Drive.<br>
+      2. Clic derecho → "Obtener enlace" → copia el ID (la parte entre /d/ y /view).<br>
+      3. Ve a <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--gold)">OAuth Playground</a>, autoriza "Drive API v3 → drive.file", genera el token y pégalo.<br>
+      4. Guarda y sincroniza. Desde cualquier dispositivo repite el paso 3 para obtener un token fresco.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📦 Insumos <button class="btn btn-outline btn-sm no-print" onclick="abrirAddIns()">+ Añadir</button></div>
+    <div class="tw"><table><thead><tr><th>ID</th><th>Nombre</th><th>Cat.</th><th>Unidad</th><th>Stock</th><th>Mínimo</th><th>Costo/u</th><th></th></tr></thead><tbody id="cfg-ins"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔧 Maquinaria (depreciación automática) <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div>
+    <div class="tw"><table><thead><tr><th>Equipo</th><th>Valor compra</th><th>Vida útil</th><th>Depreciación/día</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📖 Recetas de bebidas <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRec()">+ Añadir</button></div>
+    <div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Método</th><th>Ingredientes</th><th>Costo</th><th></th></tr></thead><tbody id="cfg-rec"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👤 Tipos de personal <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRol()">+ Añadir</button></div>
+    <div class="tw"><table><thead><tr><th>Rol</th><th>Tarifa/hora</th><th></th></tr></thead><tbody id="cfg-roles"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--red)">⚠️ Zona de peligro</div>
+    <button class="btn btn-danger no-print" onclick="resetData()">Borrar todos los datos y restaurar valores de fábrica</button>
+  </div>
+</div>
+
+<!-- MODALES -->
+<div class="mo" id="mo-pdf"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-pdf')">✕</button><div id="pdf-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir / PDF</button><button class="btn btn-outline" onclick="closeM('mo-pdf')">Cerrar</button></div></div></div>
+<div class="mo" id="mo-ver"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-ver')">✕</button><div id="ver-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button><button class="btn btn-gold" onclick="irChecklist()">📦 Abrir en Checklist</button><button class="btn btn-outline" onclick="closeM('mo-ver')">Cerrar</button></div></div></div>
+<div class="mo" id="mo-edit"><div class="modal"><button class="mc" onclick="closeM('mo-edit')">✕</button><div class="modal-title">Editar Cotización</div><input type="hidden" id="ec-id"><div class="fr"><div class="fg"><label>Cliente</label><input id="ec-cli" type="text"></div><div class="fg"><label>Fecha</label><input id="ec-fecha" type="date"></div></div><div class="fr"><div class="fg"><label>Personas</label><input id="ec-per" type="number"></div><div class="fg"><label>Precio cobrado</label><input id="ec-precio" type="number"></div></div><div class="fr"><div class="fg"><label>Estado</label><select id="ec-estado"><option>Pendiente</option><option>Confirmado</option><option>En proceso</option><option>Completado</option><option>Cancelado</option></select></div><div class="fg"><label>Notas</label><input id="ec-notas" type="text"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarEdit()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-edit')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-mov"><div class="modal"><button class="mc" onclick="closeM('mo-mov')">✕</button><div class="modal-title">Registrar movimiento</div><div class="fr"><div class="fg"><label>Ítem</label><select id="mov-item"></select></div><div class="fg"><label>Tipo</label><select id="mov-tipo"><option value="COMPRA">COMPRA (entrada +)</option><option value="SALIDA_EVENTO">SALIDA_EVENTO (resta −)</option><option value="RETORNO_EVENTO">RETORNO_EVENTO (+)</option><option value="PERDIDA">PÉRDIDA (resta −)</option><option value="AJUSTE">AJUSTE (nuevo total)</option></select></div></div><div class="fr"><div class="fg"><label>Cantidad</label><input id="mov-cant" type="number" min="0"></div><div class="fg"><label>Motivo</label><input id="mov-motivo" type="text"></div></div><div class="fg"><label>Notas</label><input id="mov-notas" type="text"></div><div class="btn-group"><button class="btn btn-primary" onclick="regMov()">Registrar</button><button class="btn btn-outline" onclick="closeM('mo-mov')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-ins"><div class="modal"><button class="mc" onclick="closeM('mo-ins')">✕</button><div class="modal-title" id="ins-title">Añadir insumo</div><input type="hidden" id="ins-eid"><div class="fr"><div class="fg"><label>Nombre</label><input id="ins-nom" type="text"></div><div class="fg"><label>Categoría</label><select id="ins-cat"><option>Insumo</option><option>Maquinaria</option><option>Elementos</option></select></div></div><div class="fr"><div class="fg"><label>Unidad</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por unidad (COP)</label><input id="ins-costo" type="number" min="0" step="0.01"></div></div><div class="fr"><div class="fg"><label>Stock</label><input id="ins-stock" type="number" min="0" value="0"></div><div class="fg"><label>Stock mínimo</label><input id="ins-min" type="number" min="0" value="0"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarIns()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-ins')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-maq"><div class="modal"><button class="mc" onclick="closeM('mo-maq')">✕</button><div class="modal-title">Maquinaria / Equipo</div><input type="hidden" id="maq-eid"><div class="fr"><div class="fg"><label>Nombre del equipo</label><input id="maq-nom" type="text"></div><div class="fg"><label>Valor de compra (COP)</label><input id="maq-val" type="number" oninput="calcDep()"></div></div><div class="fr"><div class="fg"><label>Vida útil (días)</label><input id="maq-vida" type="number" min="1" value="1825" oninput="calcDep()"></div><div class="fg"><label>Depreciación/día (auto)</label><input id="maq-dep" readonly style="background:var(--cream);color:var(--muted)"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarMaq()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-maq')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-rec"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-rec')">✕</button><div class="modal-title" id="rec-title">Nueva bebida</div><input type="hidden" id="rec-eid"><div class="fr"><div class="fg"><label>Nombre de la bebida</label><input id="rec-nom" type="text"></div><div class="fg"><label>Barra</label><select id="rec-barra"><option>Colombiana</option><option>Italiana</option><option>Filtrados</option><option>Carajillos</option><option>Infusiones</option><option>Premium</option><option>Blanca</option><option>Impresora</option></select></div></div><div class="fr"><div class="fg"><label>Método</label><input id="rec-met" type="text"></div><div class="fg"><label>Rendimiento</label><input id="rec-rend" type="text"></div></div><div class="fg"><label>Ingredientes (descripción)</label><textarea id="rec-ings" rows="2"></textarea></div><div class="fg"><label>Costo estimado (COP)</label><input id="rec-costo" type="number" min="0"></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarRec()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-rec')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-rol"><div class="modal"><button class="mc" onclick="closeM('mo-rol')">✕</button><div class="modal-title">Tipo de personal</div><input type="hidden" id="rol-eid"><div class="fr"><div class="fg"><label>Nombre del rol</label><input id="rol-nom" type="text" placeholder="Barista principal"></div><div class="fg"><label>Tarifa por hora (COP)</label><input id="rol-tar" type="number" min="0"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarRol()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-rol')">Cancelar</button></div></div></div>
+
+<div class="toast" id="toast"></div>
+<script>
+// ═══════════════════════════ DEFAULTS ═══════════════════════════
+const DEF_BARRAS=[
+  {id:'colombiana',icon:'🇨🇴',name:'Barra Colombiana',desc:'Tintos, café con panela. 100% café antioqueño recién tostado.',bebidas:['Tinto tradicional','Café con panela','Aguapanela con café']},
+  {id:'italiana',icon:'🇮🇹',name:'Barra Italiana',desc:'Espressos, cappuccinos, lattes en tazas de porcelana.',bebidas:['Espresso','Cappuccino','Americano','Latte','Macchiato']},
+  {id:'filtrados',icon:'🔬',name:'Barra de Filtrados',desc:'V60, Chemex, Aeropress, Prensa Francesa y más.',bebidas:['V60','Chemex','Prensa Francesa','Aeropress','Cold Brew']},
+  {id:'carajillos',icon:'🥂',name:'Barra de Carajillos',desc:'Café con licores seleccionados. Perfecta para eventos nocturnos.',bebidas:['Carajillo Amaretto','Carajillo Whisky Cream','Espresso Martini']},
+  {id:'premium',icon:'⭐',name:'Barra Premium',desc:'Todo en uno: colombiana + italiana + filtrados + carajillos.',bebidas:['Menú completo combinado']},
+  {id:'tes',icon:'🍵',name:'Barra de Tés e Infusiones',desc:'Tés naturales e infusiones herbales y frutales. Sin cafeína.',bebidas:['Tizana frutal','Té Chai','Infusión jengibre','Aromáticas']},
+  {id:'blanca',icon:'🏳️',name:'Barra Blanca',desc:'Multimarca. Cafés de especialidad de distintas regiones.',bebidas:['Cafés de especialidad','Catas dirigidas']},
+  {id:'impresora',icon:'🖨️',name:'Barra con Impresora',desc:'Tu logo impreso en la espuma. El diferenciador definitivo.',bebidas:['Cappuccino con logo','Latte con mensaje','Mocha personalizado']},
+];
+const DEF_INS=[
+  {id:'INS001',nombre:'Café Premium Molido',cat:'Insumo',unidad:'gramo',stock:2000,minimo:500,costo:48},
+  {id:'INS002',nombre:'Café Premium Grano',cat:'Insumo',unidad:'gramo',stock:1000,minimo:500,costo:48},
+  {id:'INS003',nombre:'Leche entera',cat:'Insumo',unidad:'ml',stock:10000,minimo:2000,costo:2.99},
+  {id:'INS004',nombre:'Leche de almendras',cat:'Insumo',unidad:'ml',stock:2000,minimo:500,costo:7.99},
+  {id:'INS005',nombre:'Instacream',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:197},
+  {id:'INS006',nombre:'Azúcar pitillo',cat:'Insumo',unidad:'unidad',stock:300,minimo:100,costo:67},
+  {id:'INS007',nombre:'Panela porciones',cat:'Insumo',unidad:'unidad',stock:150,minimo:50,costo:150},
+  {id:'INS008',nombre:'Endulzante',cat:'Insumo',unidad:'unidad',stock:500,minimo:100,costo:54.9},
+  {id:'INS009',nombre:'Vasos 4oz',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:82},
+  {id:'INS010',nombre:'Vasos 6oz',cat:'Insumo',unidad:'unidad',stock:150,minimo:50,costo:148.36},
+  {id:'INS011',nombre:'Vasos 7oz',cat:'Insumo',unidad:'unidad',stock:100,minimo:50,costo:87},
+  {id:'INS012',nombre:'Vaso Whisky Plástico',cat:'Insumo',unidad:'unidad',stock:50,minimo:25,costo:480},
+  {id:'INS013',nombre:'Mezcladores',cat:'Insumo',unidad:'unidad',stock:500,minimo:100,costo:12.2},
+  {id:'INS014',nombre:'Filtros',cat:'Insumo',unidad:'unidad',stock:100,minimo:20,costo:396},
+  {id:'INS015',nombre:'Aromática Tizana',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:211},
+  {id:'INS016',nombre:'Infusiones Mix',cat:'Insumo',unidad:'unidad',stock:100,minimo:30,costo:916},
+  {id:'INS017',nombre:'Té Chai',cat:'Insumo',unidad:'gramo',stock:500,minimo:100,costo:56.9},
+  {id:'INS018',nombre:'Jengibre seco',cat:'Insumo',unidad:'gramo',stock:200,minimo:50,costo:297.5},
+  {id:'INS019',nombre:'Amaretto',cat:'Insumo',unidad:'ml',stock:750,minimo:200,costo:48.6},
+  {id:'INS020',nombre:'Crema de Whisky',cat:'Insumo',unidad:'ml',stock:750,minimo:200,costo:45.6},
+  {id:'INS021',nombre:'Hielo',cat:'Insumo',unidad:'gramo',stock:20000,minimo:2000,costo:0.8},
+  {id:'INS022',nombre:'Botellón de agua',cat:'Insumo',unidad:'ml',stock:20000,minimo:5000,costo:0.8},
+  {id:'INS023',nombre:'Bolsas de basura',cat:'Insumo',unidad:'unidad',stock:20,minimo:5,costo:220},
+  {id:'MAQ001',nombre:'Máquina espresso',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:3500000},
+  {id:'MAQ002',nombre:'Molino de café',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:800000},
+  {id:'MAQ003',nombre:'Vaporizador de leche',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:250000},
+  {id:'MAQ004',nombre:'Nevera portátil',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:350000},
+  {id:'MAQ005',nombre:'Set utensilios',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:200000},
+  {id:'ELE001',nombre:'Mantel de barra',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:80000},
+  {id:'ELE002',nombre:'Uniforme barista',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:120000},
+];
+const DEF_MAQ=[
+  {id:'M1',nombre:'Máquina espresso',valor:3500000,vidaDias:1825},
+  {id:'M2',nombre:'Molino de café',valor:800000,vidaDias:1825},
+  {id:'M3',nombre:'Vaporizador de leche',valor:250000,vidaDias:730},
+  {id:'M4',nombre:'Nevera portátil',valor:350000,vidaDias:1095},
+  {id:'M5',nombre:'Set utensilios',valor:200000,vidaDias:365},
+];
+const DEF_REC=[
+  {id:'R01',nombre:'Prensa Francesa 350ml',barra:'Filtrados',metodo:'Infusión',rend:'350 ml',ingredientes:'Café grano 25g, Agua 275ml',costo:5760},
+  {id:'R02',nombre:'Chemex 800ml',barra:'Filtrados',metodo:'Goteo filtrado',rend:'800 ml',ingredientes:'Café grano 60g, Agua 840ml, Filtro x1',costo:13200},
+  {id:'R03',nombre:'V60',barra:'Filtrados',metodo:'Vertido',rend:'420 ml',ingredientes:'Café grano 30g, Agua 420ml, Filtro x1',costo:6648},
+  {id:'R04',nombre:'Espresso sencillo',barra:'Italiana',metodo:'Espresso',rend:'35 ml',ingredientes:'Café grano 12g, Agua 35ml',costo:740},
+  {id:'R05',nombre:'Cappuccino',barra:'Italiana',metodo:'Espresso + vapor',rend:'150 ml',ingredientes:'Café grano 12g, Leche 100ml',costo:1316},
+  {id:'R06',nombre:'Latte',barra:'Italiana',metodo:'Espresso + vapor',rend:'250 ml',ingredientes:'Café grano 12g, Leche 180ml',costo:1340},
+  {id:'R07',nombre:'Cold Brew 800ml',barra:'Filtrados',metodo:'Extracción fría 12h',rend:'800 ml',ingredientes:'Café grano 80g, Agua 800ml, Hielo 200g',costo:6264},
+  {id:'R08',nombre:'Tinto tradicional',barra:'Colombiana',metodo:'Filtrado simple',rend:'100 ml',ingredientes:'Café molido 8g, Agua 100ml',costo:384},
+  {id:'R09',nombre:'Café con panela',barra:'Colombiana',metodo:'Filtrado + panela',rend:'150 ml',ingredientes:'Café molido 8g, Agua 150ml, Panela x1',costo:534},
+  {id:'R10',nombre:'Carajillo Amaretto',barra:'Carajillos',metodo:'Espresso + licor',rend:'80 ml',ingredientes:'Café grano 12g, Amaretto 30ml',costo:2219},
+  {id:'R11',nombre:'Tizana frutal',barra:'Infusiones',metodo:'Infusión caliente',rend:'200 ml',ingredientes:'Tizana x1.5, Agua 200ml',costo:534},
+  {id:'R12',nombre:'Té Chai',barra:'Infusiones',metodo:'Infusión',rend:'250 ml',ingredientes:'Té Chai 4g, Leche 150ml',costo:870},
+];
+const DEF_ROLES=[
+  {id:'ROL1',nombre:'Barista principal',tarifa:25000},
+  {id:'ROL2',nombre:'Barista auxiliar',tarifa:18000},
+  {id:'ROL3',nombre:'Coordinador de eventos',tarifa:30000},
+];
+const DEF_LC={
+  colombiana:[{id:'INS001',nombre:'Café Molido',cant:18,unidad:'g'},{id:'INS007',nombre:'Panela porciones',cant:2,unidad:'und'},{id:'INS009',nombre:'Vasos 4oz',cant:2.5,unidad:'und'},{id:'INS022',nombre:'Agua',cant:180,unidad:'ml'}],
+  italiana:[{id:'INS002',nombre:'Café Grano',cant:15,unidad:'g'},{id:'INS003',nombre:'Leche entera',cant:150,unidad:'ml'},{id:'INS010',nombre:'Vasos 6oz',cant:2.5,unidad:'und'},{id:'INS008',nombre:'Endulzante',cant:2,unidad:'und'}],
+  filtrados:[{id:'INS002',nombre:'Café Grano',cant:22,unidad:'g'},{id:'INS014',nombre:'Filtros',cant:0.5,unidad:'und'},{id:'INS011',nombre:'Vasos 7oz',cant:2,unidad:'und'},{id:'INS022',nombre:'Agua',cant:300,unidad:'ml'}],
+  carajillos:[{id:'INS002',nombre:'Café Grano',cant:12,unidad:'g'},{id:'INS019',nombre:'Amaretto',cant:30,unidad:'ml'},{id:'INS020',nombre:'Crema Whisky',cant:20,unidad:'ml'},{id:'INS012',nombre:'Vaso Whisky',cant:2,unidad:'und'}],
+  premium:[{id:'INS001',nombre:'Café Molido',cant:10,unidad:'g'},{id:'INS002',nombre:'Café Grano',cant:15,unidad:'g'},{id:'INS003',nombre:'Leche entera',cant:120,unidad:'ml'},{id:'INS007',nombre:'Panela',cant:1,unidad:'und'},{id:'INS014',nombre:'Filtros',cant:0.3,unidad:'und'},{id:'INS019',nombre:'Amaretto',cant:15,unidad:'ml'},{id:'INS010',nombre:'Vasos 6oz',cant:1.5,unidad:'und'}],
+  tes:[{id:'INS015',nombre:'Aromática Tizana',cant:1.5,unidad:'und'},{id:'INS016',nombre:'Infusiones Mix',cant:0.5,unidad:'und'},{id:'INS017',nombre:'Té Chai',cant:4,unidad:'g'},{id:'INS022',nombre:'Agua',cant:250,unidad:'ml'}],
+  blanca:[{id:'INS002',nombre:'Café Grano',cant:20,unidad:'g'},{id:'INS001',nombre:'Café Molido',cant:10,unidad:'g'},{id:'INS003',nombre:'Leche entera',cant:100,unidad:'ml'},{id:'INS011',nombre:'Vasos 7oz',cant:2.5,unidad:'und'}],
+  impresora:[{id:'INS002',nombre:'Café Grano',cant:15,unidad:'g'},{id:'INS003',nombre:'Leche entera',cant:180,unidad:'ml'},{id:'INS010',nombre:'Vasos 6oz',cant:2.5,unidad:'und'}],
+};
+
+// ═══════════════════════════ STATE ═══════════════════════════
+let S={cotizaciones:[],inventario:[],maquinaria:[],recetas:[],roles:[],movimientos:[],eventos:[],drive:{fileId:'',token:''}};
+let personal_cot=[];
+let barraActiva=null;
+let cotVerID=null;
+let evItems=[];
+
+function loadS(){
+  try{
+    const d=localStorage.getItem('kc_v4');
+    if(d){const p=JSON.parse(d);S={...S,...p};}
+    else{S.inventario=JSON.parse(JSON.stringify(DEF_INS));S.maquinaria=JSON.parse(JSON.stringify(DEF_MAQ));S.recetas=JSON.parse(JSON.stringify(DEF_REC));S.roles=JSON.parse(JSON.stringify(DEF_ROLES));}
+    if(!S.inventario?.length)S.inventario=JSON.parse(JSON.stringify(DEF_INS));
+    if(!S.maquinaria?.length)S.maquinaria=JSON.parse(JSON.stringify(DEF_MAQ));
+    if(!S.recetas?.length)S.recetas=JSON.parse(JSON.stringify(DEF_REC));
+    if(!S.roles?.length)S.roles=JSON.parse(JSON.stringify(DEF_ROLES));
+    if(!S.cotizaciones)S.cotizaciones=[];if(!S.movimientos)S.movimientos=[];
+    if(!S.eventos)S.eventos=[];if(!S.drive)S.drive={fileId:'',token:''};
+  }catch(e){console.error(e);}
+}
+function saveS(){localStorage.setItem('kc_v4',JSON.stringify(S));syncDrive(false);}
+
+// ═══════════════════════════ DRIVE ═══════════════════════════
+let syncT=null;
+function setSS(st,msg){document.getElementById('sync-dot').className='sync-dot '+st;document.getElementById('sync-text').textContent=msg;}
+async function syncDrive(manual=false){
+  if(!S.drive.fileId||!S.drive.token){if(manual)toast('Configura Drive primero');return;}
+  clearTimeout(syncT);
+  syncT=setTimeout(async()=>{
+    setSS('syncing','Sincronizando con Drive...');
+    try{
+      const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${S.drive.fileId}?uploadType=media`,{method:'PATCH',headers:{'Authorization':'Bearer '+S.drive.token,'Content-Type':'application/json'},body:JSON.stringify(S)});
+      if(r.ok){setSS('ok','Sincronizado — '+new Date().toLocaleTimeString('es-CO'));if(manual)toast('✅ Sincronizado con Drive');}
+      else{const e=await r.json();setSS('err','Error Drive: '+(e?.error?.message||r.status));if(manual)toast('❌ Error: '+r.status);}
+    }catch(e){setSS('err','Sin conexión a Drive');}
+  },manual?0:2500);
+}
+async function cargarDrive(){
+  if(!S.drive.fileId||!S.drive.token)return;
+  setSS('syncing','Cargando desde Drive...');
+  try{
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${S.drive.fileId}?alt=media`,{headers:{'Authorization':'Bearer '+S.drive.token}});
+    if(r.ok){const d=await r.json();const drv=S.drive;S={...S,...d,drive:drv};localStorage.setItem('kc_v4',JSON.stringify(S));setSS('ok','Datos cargados — '+new Date().toLocaleTimeString('es-CO'));renderAll();toast('✅ Datos cargados desde Drive');}
+    else setSS('err','No se pudo leer Drive');
+  }catch(e){setSS('err','Sin conexión a Drive');}
+}
+function guardarDrive(){S.drive.fileId=document.getElementById('cfg-drive-id').value.trim();S.drive.token=document.getElementById('cfg-drive-token').value.trim();saveS();toast('Configuración guardada');cargarDrive();}
+function exportarBackup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download='kirsten-backup-'+new Date().toISOString().split('T')[0]+'.json';a.click();toast('Backup descargado');}
+function importarBackup(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);const drv=S.drive;S={...S,...d,drive:drv};saveS();renderAll();toast('✅ Backup restaurado');}catch(e){toast('❌ Archivo inválido');}};r.readAsText(f);inp.value='';}
+
+// ═══════════════════════════ HELPERS ═══════════════════════════
+const fmt=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).substr(2,4);
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+function openM(id){document.getElementById(id).classList.add('open');}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ═══════════════════════════ NAV ═══════════════════════════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const map={dashboard:0,cotizacion:1,lista:2,evento:3,inventario:4,recetario:5,movimientos:6,config:7};
+  if(map[id]!==undefined)document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
+  if(id==='dashboard')renderDash();
+  if(id==='lista'){renderCots();fillEvSel();}
+  if(id==='inventario')renderInv();
+  if(id==='recetario')renderRec();
+  if(id==='movimientos')renderMovs();
+  if(id==='config')renderCfg();
+  if(id==='evento'){fillEvSel();renderSalida();}
+}
+
+// ═══════════════════════════ BARRAS ═══════════════════════════
+function renderBarras(){
+  document.getElementById('barra-sel').innerHTML=DEF_BARRAS.map(b=>`<div class="bcard ${barraActiva===b.id?'sel':''}" onclick="selBarra('${b.id}')"><div class="ck">✓</div><div class="bi">${b.icon}</div><div class="bn">${b.name}</div><div class="bd">${b.desc}</div></div>`).join('');
+}
+function selBarra(id){barraActiva=id;renderBarras();calcCot();}
+
+// ═══════════════════════════ PERSONAL ═══════════════════════════
+function renderPersonal(){
+  const el=document.getElementById('personal-list');
+  if(!personal_cot.length){el.innerHTML='<div style="color:var(--muted2);font-size:12.5px;padding:6px 0">Sin personal. Haz clic en "+ Añadir" para agregar baristas.</div>';return;}
+  el.innerHTML=personal_cot.map((p,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream2)">
+    <select style="flex:1;font-size:13px" onchange="personal_cot[${i}].rolId=this.value;calcCot()">${S.roles.map(r=>`<option value="${r.id}" ${p.rolId===r.id?'selected':''}>${r.nombre} — ${fmt(r.tarifa)}/h</option>`).join('')}</select>
+    <input type="number" style="width:75px" min="1" max="24" value="${p.horas}" placeholder="Horas" oninput="personal_cot[${i}].horas=+this.value;calcCot()" title="Horas trabajadas">
+    <span style="font-size:12px;color:var(--muted);width:85px;text-align:right">${fmt(calcPI(p))}</span>
+    <button class="btn btn-danger btn-xs" onclick="personal_cot.splice(${i},1);renderPersonal();calcCot()">✕</button>
+  </div>`).join('');
+}
+function calcPI(p){const r=S.roles.find(x=>x.id===p.rolId);return r?(r.tarifa*(p.horas||0)):0;}
+function addPersonal(){if(!S.roles.length){toast('Añade roles en Configuración primero');return;}personal_cot.push({rolId:S.roles[0].id,horas:4});renderPersonal();calcCot();}
+
+// ═══════════════════════════ CALC COTIZACIÓN ═══════════════════════════
+function calcCot(){
+  const personas=+document.getElementById('f-personas').value||0;
+  const horas=+document.getElementById('f-horas').value||0;
+  const dias=+document.getElementById('f-dias').value||1;
+  const margen=(+document.getElementById('f-margen').value||0)/100;
+  const desc=(+document.getElementById('f-descuento').value||0)/100;
+  const iva=+document.getElementById('f-iva').value||0;
+  const trans=+document.getElementById('f-transporte').value||0;
+  const imp=+document.getElementById('f-imprevistos').value||0;
+  const otros=+document.getElementById('f-otros').value||0;
+  const cliente=document.getElementById('f-cliente').value||'—';
+
+  let costoIns=0;
+  if(barraActiva){(DEF_LC[barraActiva]||[]).forEach(item=>{const inv=S.inventario.find(i=>i.id===item.id);if(inv)costoIns+=inv.costo*item.cant*personas*1.1;});}
+  const costoPersonal=personal_cot.reduce((a,p)=>a+calcPI(p),0);
+  const depDia=S.maquinaria.reduce((a,m)=>a+(m.valor/Math.max(m.vidaDias,1)),0);
+  const costoDep=depDia*dias;
+  const costoTotal=costoIns+costoPersonal+costoDep+trans+imp+otros;
+  const vMargen=costoTotal*margen;
+  const sub=costoTotal+vMargen;
+  const vDesc=sub*desc;
+  const base=sub-vDesc;
+  const vIva=base*iva;
+  const precioFinal=base+vIva;
+
+  const b=DEF_BARRAS.find(x=>x.id===barraActiva);
+  document.getElementById('prev-barra').textContent=b?b.name+' '+b.icon:'Selecciona una barra';
+  document.getElementById('prev-cliente').textContent=cliente;
+  document.getElementById('prev-personas').textContent=personas+' personas';
+  document.getElementById('prev-horas').textContent=horas+' horas';
+  document.getElementById('prev-total').textContent=fmt(precioFinal);
+  document.getElementById('prev-pp').textContent=personas>0?fmt(precioFinal/personas)+' por persona':'';
+  document.getElementById('ci-insumos').textContent=fmt(costoIns);
+  document.getElementById('ci-personal').textContent=fmt(costoPersonal);
+  document.getElementById('ci-dep').textContent=fmt(costoDep)+' ('+dias+' día'+(dias>1?'s':'')+')';
+  document.getElementById('ci-trans').textContent=trans>0?fmt(trans):'Incluido';
+  document.getElementById('ci-imp').textContent=fmt(imp);
+  document.getElementById('ci-otros').textContent=fmt(otros);
+  document.getElementById('ci-ctotal').textContent=fmt(costoTotal);
+  document.getElementById('ci-mlabel').textContent='Margen ('+Math.round(margen*100)+'%)';
+  document.getElementById('ci-mval').textContent='+'+fmt(vMargen);
+  document.getElementById('ci-desc').textContent=desc>0?'-'+fmt(vDesc):'—';
+  document.getElementById('ci-iva').textContent=iva>0?'+'+fmt(vIva):'—';
+  document.getElementById('ci-final').textContent=fmt(precioFinal);
+  renderLP(personas);
+  return {personas,horas,dias,costoIns,costoPersonal,costoDep,trans,imp,otros,costoTotal,margen,vMargen,desc,vDesc,iva,vIva,precioFinal};
+}
+
+function renderLP(personas){
+  const el=document.getElementById('lista-preview');
+  if(!barraActiva){el.innerHTML='<div class="empty" style="padding:14px"><div class="empty-text" style="font-size:12px">Selecciona una barra</div></div>';return;}
+  const lista=DEF_LC[barraActiva]||[];
+  let ctotal=0;
+  let html='<div style="max-height:200px;overflow-y:auto">';
+  lista.forEach(item=>{
+    const nec=Math.ceil(item.cant*personas*1.1);
+    const inv=S.inventario.find(i=>i.id===item.id);
+    const stock=inv?inv.stock:0;const ok=stock>=nec;
+    ctotal+=(inv?inv.costo:0)*nec;
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:12px"><span>${item.nombre}</span><div style="display:flex;gap:6px;align-items:center"><span style="color:var(--muted)">${nec.toLocaleString()} ${item.unidad}</span><span class="tag ${ok?'tg':'tr'}" style="font-size:10px">${ok?'OK':'Falta '+(nec-stock).toLocaleString()}</span></div></div>`;
+  });
+  html+=`</div><div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid var(--cream3);font-size:12.5px"><span style="color:var(--muted)">Costo est. insumos</span><strong>${fmt(ctotal)}</strong></div>`;
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════ GUARDAR COT ═══════════════════════════
+function guardarCot(){
+  const b=DEF_BARRAS.find(x=>x.id===barraActiva);
+  if(!b){toast('Selecciona un tipo de barra');return;}
+  const cli=document.getElementById('f-cliente').value.trim();
+  if(!cli){toast('Ingresa el nombre del cliente');return;}
+  const n=calcCot();
+  const cot={
+    id:'COT-'+String(S.cotizaciones.length+1).padStart(3,'0'),
+    cliente:cli,barraId:barraActiva,barraName:b.name+' '+b.icon,
+    fecha:document.getElementById('f-fecha').value||new Date().toISOString().split('T')[0],
+    ciudad:document.getElementById('f-ciudad').value,lugar:document.getElementById('f-lugar').value,
+    notas:document.getElementById('f-notas').value,
+    personas:n.personas,horas:n.horas,dias:n.dias,
+    costoIns:n.costoIns,costoPersonal:n.costoPersonal,costoDep:n.costoDep,
+    trans:n.trans,imp:n.imp,otros:n.otros,costoTotal:n.costoTotal,
+    margen:n.margen,vMargen:n.vMargen,desc:n.desc,vDesc:n.vDesc,iva:n.iva,vIva:n.vIva,
+    precioFinal:n.precioFinal,personal:JSON.parse(JSON.stringify(personal_cot)),
+    listaCompras:(DEF_LC[barraActiva]||[]).map(i=>({...i,necesario:Math.ceil(i.cant*n.personas*1.1)})),
+    estado:'Pendiente',creado:new Date().toISOString(),
+  };
+  S.cotizaciones.unshift(cot);saveS();toast('✅ '+cot.id+' guardada');renderDash();
+}
+
+// ═══════════════════════════ PDF ═══════════════════════════
+function genPDF(c){
+  const b=DEF_BARRAS.find(x=>x.id===c.barraId);
+  return `<div class="pdf-doc">
+    <div class="pdf-head"><div><div class="pdf-brand">Kirsten Café<span>Barras de café para eventos especiales</span></div></div><div class="pdf-id">Cotización<strong>${c.id}</strong><div style="margin-top:3px">Válida 15 días</div></div></div>
+    <div class="pdf-section"><h4>Datos del evento</h4>
+      <div class="pdf-row"><span>Cliente</span><strong>${c.cliente}</strong></div>
+      <div class="pdf-row"><span>Fecha</span><span>${c.fecha||'Por definir'}</span></div>
+      <div class="pdf-row"><span>Ciudad / Lugar</span><span>${c.ciudad||'—'}${c.lugar?' — '+c.lugar:''}</span></div>
+      <div class="pdf-row"><span>Duración</span><span>${c.horas} horas · ${c.dias} día(s)</span></div>
+    </div>
+    <div class="pdf-section"><h4>Servicio</h4>
+      <div class="pdf-row"><span>Tipo de barra</span><strong>${c.barraName}</strong></div>
+      <div class="pdf-row"><span>Asistentes</span><span>${c.personas} personas</span></div>
+      ${b?`<div style="font-size:12px;color:var(--muted);margin-top:8px;padding:8px 10px;background:var(--cream);border-radius:6px;line-height:1.6">${b.desc}<br><em>Incluye: ${b.bebidas.join(', ')}</em></div>`:''}
+    </div>
+    <div class="pdf-section"><h4>Incluye</h4><ul style="padding-left:16px;font-size:12.5px;line-height:1.9">
+      <li>Baristas especializados</li><li>Equipos profesionales de extracción</li>
+      <li>Insumos y empaques de primera calidad</li><li>Montaje y desmontaje de la barra</li>
+      ${c.trans>0?'<li>Transporte incluido</li>':''}${c.notas?`<li>${c.notas}</li>`:''}
+    </ul></div>
+    <div class="pdf-section"><h4>Inversión</h4>
+      <div class="pdf-row"><span>Asistentes</span><span>${c.personas} personas</span></div>
+      ${c.desc>0?`<div class="pdf-row"><span>Descuento (${Math.round(c.desc*100)}%)</span><span>− ${fmt(c.vDesc)}</span></div>`:''}
+      ${c.iva>0?`<div class="pdf-row"><span>IVA (19%)</span><span>+ ${fmt(c.vIva||0)}</span></div>`:''}
+      <div class="pdf-total"><span>Valor total del evento</span><span>${fmt(c.precioFinal)}</span></div>
+      <div style="text-align:right;font-size:12px;color:var(--muted);margin-top:4px">${fmt(c.precioFinal/c.personas)} por persona</div>
+    </div>
+    <div class="pdf-footer">Kirsten Café · Medellín, Colombia · Cotización válida por 15 días desde la fecha de emisión.</div>
+  </div>`;
+}
+
+function genDesglose(c){
+  return `<div style="margin-top:16px;background:var(--cream);border:1.5px dashed var(--border2);border-radius:10px;padding:16px;font-size:12.5px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:10px;font-weight:600">📊 Desglose interno (no visible al cliente)</div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Insumos</span><span>${fmt(c.costoIns)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Personal</span><span>${fmt(c.costoPersonal)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Depreciación equipos</span><span>${fmt(c.costoDep)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Transporte</span><span>${fmt(c.trans)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Imprevistos + otros</span><span>${fmt((c.imp||0)+(c.otros||0))}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0 3px;border-top:1px solid var(--cream3);margin-top:6px;font-weight:600"><span>Costo operativo total</span><span>${fmt(c.costoTotal)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--sage)"><span>Margen (${Math.round((c.margen||0)*100)}%)</span><span>+${fmt(c.vMargen)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--gold);margin-top:6px;font-family:'Playfair Display',serif;font-size:15px;font-weight:700"><span>Precio final</span><span>${fmt(c.precioFinal)}</span></div>
+  </div>`;
+}
+
+function verPDF(){
+  if(!barraActiva){toast('Selecciona una barra');return;}
+  const n=calcCot();const b=DEF_BARRAS.find(x=>x.id===barraActiva);
+  const tmp={id:'BORRADOR',cliente:document.getElementById('f-cliente').value||'Cliente',barraId:barraActiva,barraName:b?b.name+' '+b.icon:'',fecha:document.getElementById('f-fecha').value,ciudad:document.getElementById('f-ciudad').value,lugar:document.getElementById('f-lugar').value,horas:n.horas,dias:n.dias,personas:n.personas,...n};
+  document.getElementById('pdf-content').innerHTML=genPDF(tmp);openM('mo-pdf');
+}
+function verCot(id){
+  const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;
+  cotVerID=id;document.getElementById('ver-content').innerHTML=genPDF(c)+genDesglose(c);openM('mo-ver');
+}
+function irChecklist(){closeM('mo-ver');const c=S.cotizaciones.find(x=>x.id===cotVerID);if(c){document.getElementById('ev-cot-sel').value=c.id;cargarCot();}showPage('evento');}
+
+// ═══════════════════════════ LISTA COTS ═══════════════════════════
+function renderCots(filtro=''){
+  const cots=S.cotizaciones.filter(c=>!filtro||c.cliente.toLowerCase().includes(filtro.toLowerCase())||c.barraName.toLowerCase().includes(filtro.toLowerCase()));
+  const tb=document.getElementById('tb-cots');
+  if(!cots.length){tb.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay cotizaciones</div></div></td></tr>`;return;}
+  const mpct=c=>c.costoTotal>0?Math.round(((c.precioFinal-c.costoTotal)/c.precioFinal)*100):0;
+  tb.innerHTML=cots.map(c=>`<tr>
+    <td><span class="tag tgray" style="font-size:10px">${c.id}</span></td>
+    <td><strong>${c.cliente}</strong><div style="font-size:11px;color:var(--muted)">${c.ciudad||''}</div></td>
+    <td style="font-size:12px">${c.barraName}</td>
+    <td style="font-size:12px">${c.fecha||'—'}</td>
+    <td>${c.personas}</td>
+    <td style="font-size:12px;color:var(--muted)">${fmt(c.costoTotal)}</td>
+    <td><strong>${fmt(c.precioFinal)}</strong></td>
+    <td><span class="tag ${mpct(c)>=30?'tg':'tgold'}">${mpct(c)}%</span></td>
+    <td><span class="tag ${c.estado==='Confirmado'?'tg':c.estado==='Cancelado'?'tr':c.estado==='Completado'?'tb':'tgold'}">${c.estado}</span></td>
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-xs" onclick="verCot('${c.id}')">Ver</button>
+      <button class="btn btn-outline btn-xs" onclick="editCot('${c.id}')">✏️</button>
+      <button class="btn btn-outline btn-xs" onclick="cicloCot('${c.id}')">Estado</button>
+      <button class="btn btn-danger btn-xs" onclick="elimCot('${c.id}')">✕</button>
+    </div></td>
+  </tr>`).join('');
+}
+function cicloCot(id){const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;const es=['Pendiente','Confirmado','En proceso','Completado','Cancelado'];c.estado=es[(es.indexOf(c.estado)+1)%es.length];saveS();renderCots(document.getElementById('q-cot').value);toast(c.id+': '+c.estado);}
+function elimCot(id){if(!confirm('¿Eliminar?'))return;S.cotizaciones=S.cotizaciones.filter(c=>c.id!==id);saveS();renderCots();renderDash();toast('Eliminada');}
+function editCot(id){const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;document.getElementById('ec-id').value=c.id;document.getElementById('ec-cli').value=c.cliente;document.getElementById('ec-fecha').value=c.fecha;document.getElementById('ec-per').value=c.personas;document.getElementById('ec-precio').value=c.precioFinal;document.getElementById('ec-estado').value=c.estado;document.getElementById('ec-notas').value=c.notas||'';openM('mo-edit');}
+function guardarEdit(){const id=document.getElementById('ec-id').value;const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;c.cliente=document.getElementById('ec-cli').value;c.fecha=document.getElementById('ec-fecha').value;c.personas=+document.getElementById('ec-per').value||c.personas;c.precioFinal=+document.getElementById('ec-precio').value||c.precioFinal;c.estado=document.getElementById('ec-estado').value;c.notas=document.getElementById('ec-notas').value;saveS();closeM('mo-edit');renderCots();renderDash();toast('✅ Actualizada');}
+
+// ═══════════════════════════ CHECKLIST EVENTO ═══════════════════════════
+function fillEvSel(){
+  const sel=document.getElementById('ev-cot-sel');
+  sel.innerHTML='<option value="">— Sin vincular —</option>'+S.cotizaciones.map(c=>`<option value="${c.id}">${c.id} — ${c.cliente} (${c.barraName})</option>`).join('');
+}
+function cargarCot(){
+  const id=document.getElementById('ev-cot-sel').value;
+  if(!id){evItems=[];renderSalida();return;}
+  const cot=S.cotizaciones.find(c=>c.id===id);if(!cot)return;
+  document.getElementById('ev-nombre').value=cot.cliente+' — '+cot.barraName;
+  evItems=(cot.listaCompras||[]).map(item=>({id:item.id,nombre:item.nombre,unidad:item.unidad,salida:0,retorno:0}));
+  renderSalida();
+}
+function addEvItem(){
+  const ins=S.inventario.filter(i=>i.cat==='Insumo');
+  if(!ins.length){toast('No hay insumos');return;}
+  evItems.push({id:ins[0].id,nombre:ins[0].nombre,unidad:ins[0].unidad,salida:0,retorno:0});
+  renderSalida();
+}
+function renderSalida(){
+  const el=document.getElementById('ev-salida-list');
+  if(!evItems.length){el.innerHTML='<div class="empty" style="padding:20px"><div class="empty-icon">📦</div><div class="empty-text">Añade ítems o selecciona una cotización arriba</div></div>';return;}
+  el.innerHTML=evItems.map((item,i)=>`
+    <div class="ev-item">
+      <div style="flex:1.5">
+        <select style="width:100%;font-size:12px" onchange="cambiarEv(${i},this.value)">
+          ${S.inventario.filter(x=>x.cat==='Insumo').map(inv=>`<option value="${inv.id}" ${inv.id===item.id?'selected':''}>${inv.nombre}</option>`).join('')}
+        </select>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Stock actual: ${(S.inventario.find(x=>x.id===item.id)||{stock:0}).stock.toLocaleString()} ${item.unidad}</div>
+      </div>
+      <div style="text-align:center;width:130px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px">Cantidad que sale</div>
+        <input class="hi" type="number" min="0" step="0.5" value="${item.salida||''}" placeholder="0" oninput="evItems[${i}].salida=+this.value" style="text-align:center;font-size:16px;font-weight:700;padding:6px">
+      </div>
+      <button class="btn btn-danger btn-xs" onclick="evItems.splice(${i},1);renderSalida()">✕</button>
+    </div>`).join('');
+}
+function cambiarEv(i,newId){const inv=S.inventario.find(x=>x.id===newId);if(inv){evItems[i].id=newId;evItems[i].nombre=inv.nombre;evItems[i].unidad=inv.unidad;}renderSalida();}
+function confirmarSalida(){
+  const nom=document.getElementById('ev-nombre').value.trim();
+  if(!nom){toast('Ingresa el nombre del evento');return;}
+  if(!evItems.length){toast('Añade al menos un ítem');return;}
+  toast('✅ Salida confirmada. Ingresa los sobrantes.');
+  evTab('retorno');
+}
+function evTab(tab){
+  document.querySelectorAll('.stab').forEach(s=>s.classList.remove('active'));
+  const tabs={salida:0,retorno:1,resultado:2};
+  document.querySelectorAll('.stab')[tabs[tab]].classList.add('active');
+  ['salida','retorno','resultado'].forEach(t=>{document.getElementById('ev-'+t).style.display=t===tab?'block':'none';});
+  if(tab==='retorno')renderRetorno();
+  if(tab==='resultado')renderResultado();
+}
+function renderRetorno(){
+  const el=document.getElementById('ev-retorno-list');
+  const conSalida=evItems.filter(i=>i.salida>0);
+  if(!conSalida.length){el.innerHTML='<div class="empty"><div class="empty-text">No hay ítems con salida mayor a 0.</div></div>';return;}
+  el.innerHTML=conSalida.map((item,i)=>{
+    const idx=evItems.indexOf(item);
+    return `<div class="ev-item">
+      <div style="flex:1.5">
+        <div style="font-weight:600;font-size:13px">${item.nombre}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Salió: <strong>${item.salida}</strong> ${item.unidad} · Consumo actual: <strong id="cns-${idx}">${(item.salida-(item.retorno||0)).toFixed(1)}</strong> ${item.unidad}</div>
+      </div>
+      <div style="text-align:center;width:130px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px">Sobrante</div>
+        <input type="number" min="0" step="0.5" max="${item.salida}" value="${item.retorno||''}" placeholder="0" oninput="evItems[${idx}].retorno=+this.value;document.getElementById('cns-${idx}').textContent=(evItems[${idx}].salida-evItems[${idx}].retorno).toFixed(1)" style="text-align:center;font-size:16px;font-weight:700;padding:6px;width:100%">
+      </div>
+    </div>`;
+  }).join('');
+}
+function cerrarEvento(){
+  const nom=document.getElementById('ev-nombre').value.trim()||'Evento';
+  const cobrado=+document.getElementById('ev-cobrado').value||0;
+  const fecha=document.getElementById('ev-fecha').value||new Date().toISOString().split('T')[0];
+  const cotId=document.getElementById('ev-cot-sel').value;
+  let costoRealIns=0;
+  evItems.filter(i=>i.salida>0).forEach(item=>{
+    const consumo=item.salida-(item.retorno||0);
+    const inv=S.inventario.find(x=>x.id===item.id);
+    if(inv){inv.stock=Math.max(0,inv.stock-consumo);costoRealIns+=inv.costo*consumo;}
+    if(item.salida>0)S.movimientos.push({fecha:new Date().toISOString(),id:item.id,item:item.nombre,tipo:'SALIDA_EVENTO',cantidad:-item.salida,motivo:nom,notas:'Salida evento'});
+    if((item.retorno||0)>0)S.movimientos.push({fecha:new Date().toISOString(),id:item.id,item:item.nombre,tipo:'RETORNO_EVENTO',cantidad:item.retorno,motivo:nom,notas:'Sobrante'});
+  });
+  const cot=cotId?S.cotizaciones.find(c=>c.id===cotId):null;
+  const costoTotal=cot?cot.costoTotal:costoRealIns;
+  const ev={id:'EV-'+uid(),nombre:nom,fecha,cotId,items:JSON.parse(JSON.stringify(evItems)),cobrado,costoRealIns,costoTotal,ganancia:cobrado-costoTotal,creado:new Date().toISOString()};
+  S.eventos.push(ev);
+  if(cot)cot.estado='Completado';
+  saveS();toast('🏁 Evento cerrado. Inventario actualizado.');
+  evTab('resultado');
+}
+function renderResultado(){
+  const ev=S.eventos[S.eventos.length-1];
+  if(!ev){document.getElementById('ev-res-tb').innerHTML='';document.getElementById('ev-rent').innerHTML='';return;}
+  document.getElementById('ev-res-tb').innerHTML=ev.items.filter(i=>i.salida>0).map(item=>{
+    const consumo=item.salida-(item.retorno||0);
+    const inv=S.inventario.find(x=>x.id===item.id);
+    return `<tr><td>${item.nombre}</td><td>${item.salida} ${item.unidad}</td><td>${item.retorno||0} ${item.unidad}</td><td><strong>${consumo.toFixed(1)} ${item.unidad}</strong></td><td>${fmt((inv?inv.costo:0)*consumo)}</td></tr>`;
+  }).join('');
+  const gan=ev.cobrado-ev.costoTotal;
+  const pct=ev.cobrado>0?Math.round((gan/ev.cobrado)*100):0;
+  const pos=gan>=0;
+  const cot=ev.cotId?S.cotizaciones.find(c=>c.id===ev.cotId):null;
+  document.getElementById('ev-rent').innerHTML=`<div class="rent-box ${pos?'ganancia':'perdida'}">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:12px;opacity:.7">Resultado: ${ev.nombre}</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span>Costo operativo total</span><span>${fmt(ev.costoTotal)}</span></div>
+    ${cot?`<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span style="opacity:.7">→ Del cual: costo de insumos real</span><span style="opacity:.7">${fmt(ev.costoRealIns)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span>Precio cobrado al cliente</span><span>${fmt(ev.cobrado)}</span></div>
+    ${cot?`<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;opacity:.7"><span>Precio cotizado originalmente</span><span>${fmt(cot.precioFinal)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:2px solid rgba(0,0,0,.1);font-family:'Playfair Display',serif;font-size:19px;font-weight:700">
+      <span>${pos?'Ganancia neta':'Pérdida neta'}</span>
+      <span style="color:${pos?'var(--sage)':'var(--red)'}">${pos?'+':''}${fmt(gan)} (${pct}%)</span>
+    </div>
+  </div>`;
+}
+function calcRent(){const ev=S.eventos[S.eventos.length-1];if(ev){ev.cobrado=+document.getElementById('ev-cobrado').value||0;renderResultado();}}
+function nuevoEvento(){evItems=[];document.getElementById('ev-cot-sel').value='';document.getElementById('ev-nombre').value='';document.getElementById('ev-fecha').value='';document.getElementById('ev-cobrado').value='';renderSalida();evTab('salida');toast('Listo para nuevo evento');}
+
+// ═══════════════════════════ INVENTARIO ═══════════════════════════
+function renderInv(filtro='todos'){
+  const items=filtro==='todos'?S.inventario:S.inventario.filter(i=>i.cat===filtro);
+  const alertas=S.inventario.filter(i=>i.stock<=i.minimo);
+  document.getElementById('d-alerts').textContent=alertas.length;
+  document.getElementById('badge-alertas').style.display=alertas.length?'inline':'none';
+  document.getElementById('badge-alertas').textContent=alertas.length;
+  document.getElementById('inv-alertas').innerHTML=alertas.length?`<div class="inv-alert">⚠️ <strong>${alertas.length} ítems por reponer:</strong> ${alertas.map(i=>i.nombre).join(', ')}</div>`:'';
+  document.getElementById('tb-inv').innerHTML=items.map(item=>{
+    const pct=Math.min(100,Math.round((item.stock/Math.max(item.minimo*3,1))*100));
+    const estado=item.stock<=0?'Agotado':item.stock<=item.minimo?'REPONER':'OK';
+    const tc=estado==='OK'?'tg':estado==='Agotado'?'tr':'tgold';
+    const bc=estado==='OK'?'ok':estado==='Agotado'?'danger':'low';
+    return `<tr>
+      <td><span class="tag tgray" style="font-size:10px">${item.id}</span></td>
+      <td><strong>${item.nombre}</strong></td>
+      <td><span class="tag tgray">${item.cat}</span></td>
+      <td><div>${item.stock.toLocaleString()} ${item.unidad}</div><div class="pbar"><div class="pfill ${bc}" style="width:${pct}%"></div></div></td>
+      <td>${item.minimo.toLocaleString()}</td><td>${item.unidad}</td>
+      <td style="font-size:12px">${fmt(item.costo)}</td>
+      <td><span class="tag ${tc}">${estado}</span></td>
+      <td><div style="display:flex;gap:4px"><button class="btn btn-outline btn-xs" onclick="ajustarStock('${item.id}')">Ajustar</button><button class="btn btn-outline btn-xs" onclick="editIns('${item.id}')">✏️</button></div></td>
+    </tr>`;
+  }).join('');
+}
+function filtrarInv(cat){renderInv(cat);}
+function ajustarStock(id){const item=S.inventario.find(i=>i.id===id);if(!item)return;const val=prompt(`Stock de "${item.nombre}": ${item.stock} ${item.unidad}\nNuevo stock:`,item.stock);if(val===null||val==='')return;const nuevo=+val;if(isNaN(nuevo))return;S.movimientos.push({fecha:new Date().toISOString(),id:item.id,item:item.nombre,tipo:'AJUSTE',cantidad:nuevo-item.stock,motivo:'Ajuste manual',notas:''});item.stock=nuevo;saveS();renderInv();toast('Stock actualizado');}
+function openMov(){document.getElementById('mov-item').innerHTML=S.inventario.map(i=>`<option value="${i.id}">${i.nombre} (${i.stock} ${i.unidad})</option>`).join('');openM('mo-mov');}
+function regMov(){
+  const id=document.getElementById('mov-item').value;const tipo=document.getElementById('mov-tipo').value;
+  const cant=+document.getElementById('mov-cant').value||0;const motivo=document.getElementById('mov-motivo').value;const notas=document.getElementById('mov-notas').value;
+  if(!cant){toast('Ingresa una cantidad');return;}
+  const item=S.inventario.find(i=>i.id===id);if(!item)return;
+  let diff=cant;
+  if(tipo==='AJUSTE')item.stock=cant;
+  else{const esE=['COMPRA','RETORNO_EVENTO'].includes(tipo);diff=esE?Math.abs(cant):-Math.abs(cant);item.stock=Math.max(0,item.stock+diff);}
+  S.movimientos.push({fecha:new Date().toISOString(),id,item:item.nombre,tipo,cantidad:diff,motivo,notas});
+  saveS();closeM('mo-mov');renderInv();toast('Movimiento registrado');
+}
+
+// ═══════════════════════════ RECETARIO ═══════════════════════════
+function renderRec(filtro=''){
+  const items=filtro?S.recetas.filter(r=>r.barra===filtro):S.recetas;
+  document.getElementById('tb-rec').innerHTML=items.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td><span class="tag tgold">${r.barra}</span></td><td style="font-size:12px">${r.metodo}</td><td style="font-size:12px">${r.rend}</td><td style="font-size:12px;color:var(--muted)">${r.ingredientes}</td><td><strong>${fmt(r.costo)}</strong></td></tr>`).join('');
+}
+function filtrarRec(v){renderRec(v);}
+
+// ═══════════════════════════ MOVIMIENTOS ═══════════════════════════
+function renderMovs(){
+  const tipo=document.getElementById('f-mtipo').value;const q=document.getElementById('f-mq').value.toLowerCase();
+  let movs=[...S.movimientos].reverse();
+  if(tipo)movs=movs.filter(m=>m.tipo===tipo);if(q)movs=movs.filter(m=>(m.item||'').toLowerCase().includes(q));
+  const tc={COMPRA:'tg',SALIDA_EVENTO:'tr',RETORNO_EVENTO:'tb',PERDIDA:'tgold',AJUSTE:'tgray',ENTRADA_INICIAL:'tb'};
+  const tb=document.getElementById('tb-movs');
+  if(!movs.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📒</div><div class="empty-text">Sin movimientos</div></div></td></tr>`;document.getElementById('movs-res').innerHTML='';return;}
+  tb.innerHTML=movs.map((m,i)=>{
+    const fd=new Date(m.fecha);const fs=isNaN(fd)?m.fecha:fd.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const pos=m.cantidad>=0;
+    return `<tr><td style="color:var(--muted2);font-size:11px">${movs.length-i}</td><td style="font-size:12px;color:var(--muted)">${fs}</td><td><strong>${m.item||m.id}</strong></td><td><span class="tag ${tc[m.tipo]||'tgray'}" style="font-size:10px">${m.tipo}</span></td><td style="font-weight:600;color:${pos?'var(--sage)':'var(--red)'}">${pos?'+':''}${(m.cantidad||0).toLocaleString()}</td><td style="font-size:12px">${m.motivo||'—'}</td><td style="font-size:12px;color:var(--muted)">${m.notas||'—'}</td></tr>`;
+  }).join('');
+  document.getElementById('movs-res').innerHTML=`<div class="g3"><div class="stat"><div class="stat-label">Total movimientos</div><div class="stat-value" style="font-size:20px">${S.movimientos.length}</div></div><div class="stat"><div class="stat-label">Entradas</div><div class="stat-value g" style="font-size:20px">${S.movimientos.filter(m=>m.cantidad>0).length}</div></div><div class="stat"><div class="stat-label">Salidas</div><div class="stat-value r" style="font-size:20px">${S.movimientos.filter(m=>m.cantidad<0).length}</div></div></div>`;
+}
+function limpiarMovs(){if(!confirm('¿Limpiar historial?'))return;S.movimientos=[];saveS();renderMovs();toast('Historial limpiado');}
+
+// ═══════════════════════════ CONFIGURACIÓN ═══════════════════════════
+function renderCfg(){
+  document.getElementById('cfg-drive-id').value=S.drive.fileId||'';
+  document.getElementById('cfg-drive-token').value=S.drive.token||'';
+  document.getElementById('cfg-ins').innerHTML=S.inventario.map(i=>`<tr><td><span class="tag tgray" style="font-size:10px">${i.id}</span></td><td>${i.nombre}</td><td>${i.cat}</td><td>${i.unidad}</td><td>${i.stock.toLocaleString()}</td><td>${i.minimo.toLocaleString()}</td><td>${fmt(i.costo)}</td><td><div style="display:flex;gap:4px"><button class="btn btn-outline btn-xs" onclick="editIns('${i.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimIns('${i.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('cfg-maq').innerHTML=S.maquinaria.map(m=>`<tr><td>${m.nombre}</td><td>${fmt(m.valor)}</td><td>${m.vidaDias} días</td><td>${fmt(m.valor/Math.max(m.vidaDias,1))}/día</td><td><div style="display:flex;gap:4px"><button class="btn btn-outline btn-xs" onclick="editMaq('${m.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimMaq('${m.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('cfg-rec').innerHTML=S.recetas.map(r=>`<tr><td>${r.nombre}</td><td><span class="tag tgold">${r.barra}</span></td><td>${r.metodo}</td><td style="font-size:12px;color:var(--muted)">${r.ingredientes}</td><td>${fmt(r.costo)}</td><td><div style="display:flex;gap:4px"><button class="btn btn-outline btn-xs" onclick="editRec('${r.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimRec('${r.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('cfg-roles').innerHTML=S.roles.map(r=>`<tr><td>${r.nombre}</td><td>${fmt(r.tarifa)}/hora</td><td><div style="display:flex;gap:4px"><button class="btn btn-outline btn-xs" onclick="editRol('${r.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimRol('${r.id}')">✕</button></div></td></tr>`).join('');
+}
+
+// CRUD Insumos
+function abrirAddIns(){document.getElementById('ins-title').textContent='Añadir insumo';document.getElementById('ins-eid').value='';document.getElementById('ins-nom').value='';document.getElementById('ins-cat').value='Insumo';document.getElementById('ins-uni').value='unidad';document.getElementById('ins-costo').value='';document.getElementById('ins-stock').value='0';document.getElementById('ins-min').value='0';openM('mo-ins');}
+function editIns(id){const i=S.inventario.find(x=>x.id===id);if(!i)return;document.getElementById('ins-title').textContent='Editar insumo';document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=i.nombre;document.getElementById('ins-cat').value=i.cat;document.getElementById('ins-uni').value=i.unidad;document.getElementById('ins-costo').value=i.costo;document.getElementById('ins-stock').value=i.stock;document.getElementById('ins-min').value=i.minimo;openM('mo-ins');}
+function guardarIns(){
+  const eid=document.getElementById('ins-eid').value;const nom=document.getElementById('ins-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}
+  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:+document.getElementById('ins-costo').value||0,stock:+document.getElementById('ins-stock').value||0,minimo:+document.getElementById('ins-min').value||0};
+  if(eid){const i=S.inventario.find(x=>x.id===eid);if(i)Object.assign(i,data);}
+  else S.inventario.push({id:'INS'+uid(),...data});
+  saveS();closeM('mo-ins');renderCfg();renderInv();toast('Insumo guardado');
+}
+function elimIns(id){if(!confirm('¿Eliminar?'))return;S.inventario=S.inventario.filter(i=>i.id!==id);saveS();renderCfg();renderInv();toast('Eliminado');}
+
+// CRUD Maquinaria
+function calcDep(){const v=+document.getElementById('maq-val').value||0;const d=+document.getElementById('maq-vida').value||1;document.getElementById('maq-dep').value=fmt(v/d)+'/día';}
+function abrirAddMaq(){document.getElementById('maq-eid').value='';document.getElementById('maq-nom').value='';document.getElementById('maq-val').value='';document.getElementById('maq-vida').value='1825';document.getElementById('maq-dep').value='';openM('mo-maq');}
+function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;document.getElementById('maq-val').value=m.valor;document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/día';openM('mo-maq');}
+function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=+document.getElementById('maq-val').value||0;const vida=+document.getElementById('maq-vida').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
+function elimMaq(id){if(!confirm('¿Eliminar?'))return;S.maquinaria=S.maquinaria.filter(m=>m.id!==id);saveS();renderCfg();toast('Eliminado');}
+
+// CRUD Recetas
+function abrirAddRec(){document.getElementById('rec-title').textContent='Nueva bebida';document.getElementById('rec-eid').value='';document.getElementById('rec-nom').value='';document.getElementById('rec-met').value='';document.getElementById('rec-rend').value='';document.getElementById('rec-ings').value='';document.getElementById('rec-costo').value='';openM('mo-rec');}
+function editRec(id){const r=S.recetas.find(x=>x.id===id);if(!r)return;document.getElementById('rec-title').textContent='Editar bebida';document.getElementById('rec-eid').value=id;document.getElementById('rec-nom').value=r.nombre;document.getElementById('rec-barra').value=r.barra;document.getElementById('rec-met').value=r.metodo;document.getElementById('rec-rend').value=r.rend;document.getElementById('rec-ings').value=r.ingredientes;document.getElementById('rec-costo').value=r.costo;openM('mo-rec');}
+function guardarRec(){const eid=document.getElementById('rec-eid').value;const nom=document.getElementById('rec-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}const data={nombre:nom,barra:document.getElementById('rec-barra').value,metodo:document.getElementById('rec-met').value,rend:document.getElementById('rec-rend').value,ingredientes:document.getElementById('rec-ings').value,costo:+document.getElementById('rec-costo').value||0};if(eid){const r=S.recetas.find(x=>x.id===eid);if(r)Object.assign(r,data);}else S.recetas.push({id:'R'+uid(),...data});saveS();closeM('mo-rec');renderCfg();renderRec();toast('Receta guardada');}
+function elimRec(id){if(!confirm('¿Eliminar?'))return;S.recetas=S.recetas.filter(r=>r.id!==id);saveS();renderCfg();renderRec();toast('Eliminada');}
+
+// CRUD Roles
+function abrirAddRol(){document.getElementById('rol-eid').value='';document.getElementById('rol-nom').value='';document.getElementById('rol-tar').value='';openM('mo-rol');}
+function editRol(id){const r=S.roles.find(x=>x.id===id);if(!r)return;document.getElementById('rol-eid').value=id;document.getElementById('rol-nom').value=r.nombre;document.getElementById('rol-tar').value=r.tarifa;openM('mo-rol');}
+function guardarRol(){const eid=document.getElementById('rol-eid').value;const nom=document.getElementById('rol-nom').value.trim();const tar=+document.getElementById('rol-tar').value||0;if(!nom){toast('Ingresa el nombre');return;}if(eid){const r=S.roles.find(x=>x.id===eid);if(r){r.nombre=nom;r.tarifa=tar;}}else S.roles.push({id:'ROL'+uid(),nombre:nom,tarifa:tar});saveS();closeM('mo-rol');renderCfg();toast('Rol guardado');}
+function elimRol(id){if(!confirm('¿Eliminar?'))return;S.roles=S.roles.filter(r=>r.id!==id);saveS();renderCfg();toast('Eliminado');}
+
+// ═══════════════════════════ DASHBOARD ═══════════════════════════
+function renderDash(){
+  document.getElementById('d-ncot').textContent=S.cotizaciones.length;
+  const ing=S.cotizaciones.filter(c=>c.estado!=='Cancelado').reduce((a,c)=>a+(c.precioFinal||0),0);
+  const cos=S.cotizaciones.filter(c=>c.estado!=='Cancelado').reduce((a,c)=>a+(c.costoTotal||0),0);
+  document.getElementById('d-ing').textContent=fmt(ing);
+  document.getElementById('d-ing-sub').textContent=cos>0?'Costo total: '+fmt(cos):'';
+  const hoy=new Date().toISOString().split('T')[0];
+  const prox=S.cotizaciones.filter(c=>c.fecha>=hoy&&c.estado!=='Cancelado').sort((a,b)=>a.fecha>b.fecha?1:-1)[0];
+  document.getElementById('d-prox').textContent=prox?prox.cliente+' — '+prox.fecha:'Sin eventos futuros';
+  const al=S.inventario.filter(i=>i.stock<=i.minimo);
+  document.getElementById('d-alerts').textContent=al.length;
+  document.getElementById('badge-alertas').style.display=al.length?'inline':'none';
+  document.getElementById('badge-alertas').textContent=al.length;
+  const rc=document.getElementById('d-recientes');
+  if(!S.cotizaciones.length)rc.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Aún no hay cotizaciones</div></div>';
+  else rc.innerHTML=`<table style="width:100%;font-size:13px"><tbody>${S.cotizaciones.slice(0,5).map(c=>`<tr><td style="padding:7px 0;border-bottom:1px solid var(--cream2)"><strong>${c.cliente}</strong><div style="font-size:11px;color:var(--muted)">${c.barraName} · ${c.fecha}</div></td><td style="padding:7px 0;border-bottom:1px solid var(--cream2);text-align:right"><strong>${fmt(c.precioFinal)}</strong><div><span class="tag ${c.estado==='Confirmado'?'tg':c.estado==='Cancelado'?'tr':'tgold'}" style="font-size:10px">${c.estado}</span></div></td></tr>`).join('')}</tbody></table>`;
+  const rp=document.getElementById('d-reponer');
+  if(!al.length)rp.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Todo el inventario en orden</div></div>';
+  else rp.innerHTML=`<table style="width:100%;font-size:13px"><tbody>${al.slice(0,6).map(i=>`<tr><td style="padding:6px 0;border-bottom:1px solid var(--cream2)">${i.nombre}</td><td style="padding:6px 0;border-bottom:1px solid var(--cream2);text-align:right"><span class="tag tr" style="font-size:10px">${i.stock}/${i.minimo} ${i.unidad}</span></td></tr>`).join('')}</tbody></table>`;
+}
+
+// ═══════════════════════════ CSV ═══════════════════════════
+function exportarCSV(){if(!S.cotizaciones.length){toast('No hay cotizaciones');return;}const h=['ID','Cliente','Barra','Fecha','Ciudad','Personas','Costo Total','Precio Final','Margen%','Estado'];dlCSV([h,...S.cotizaciones.map(c=>[c.id,c.cliente,c.barraName,c.fecha,c.ciudad||'',c.personas,c.costoTotal,c.precioFinal,c.costoTotal>0?Math.round(((c.precioFinal-c.costoTotal)/c.precioFinal)*100):0,c.estado])],'kirsten-cotizaciones.csv');}
+function exportarInvCSV(){dlCSV([['ID','Ítem','Cat','Unidad','Stock','Mínimo','Costo/u','Estado'],...S.inventario.map(i=>[i.id,i.nombre,i.cat,i.unidad,i.stock,i.minimo,i.costo,i.stock<=i.minimo?'REPONER':'OK'])],'kirsten-inventario.csv');}
+function dlCSV(data,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+data.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href);toast('CSV exportado');}
+
+function resetData(){if(!confirm('⚠️ Borrar TODOS los datos. ¿Continuar?'))return;if(!confirm('Segunda confirmación: ¿segura?'))return;const drv=S.drive;localStorage.removeItem('kc_v4');S={cotizaciones:[],inventario:JSON.parse(JSON.stringify(DEF_INS)),maquinaria:JSON.parse(JSON.stringify(DEF_MAQ)),recetas:JSON.parse(JSON.stringify(DEF_REC)),roles:JSON.parse(JSON.stringify(DEF_ROLES)),movimientos:[],eventos:[],drive:drv};saveS();renderAll();toast('✅ Datos restaurados');}
+function renderAll(){renderDash();renderCots();renderInv();renderRec();renderMovs();renderCfg();}
+
+// ═══════════════════════════ INIT ═══════════════════════════
+loadS();
+renderBarras();
+renderPersonal();
+renderDash();
+document.getElementById('f-fecha').valueAsDate=new Date();
+document.getElementById('ev-fecha').valueAsDate=new Date();
+cargarDrive();
+</script>
+</body>
+</html>
