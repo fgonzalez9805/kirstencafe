@@ -5,6 +5,58 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kirsten Café — Sistema de Eventos</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase SDK via CDN modular -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAyg4VnPlCVfzXGP8onjw-l8lfxL-bcIfA",
+    authDomain: "kirsten-cafe.firebaseapp.com",
+    projectId: "kirsten-cafe",
+    storageBucket: "kirsten-cafe.firebasestorage.app",
+    messagingSenderId: "651141393465",
+    appId: "1:651141393465:web:4cb301f942093b6f5c31e8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const docRef = doc(db, 'kirstencafe', 'data');
+
+  // Exponer funciones al scope global para que el resto del JS las use
+  window._fbSave = async (data) => {
+    try {
+      await setDoc(docRef, data);
+      window._setSS('ok','Firebase · '+new Date().toLocaleTimeString('es-CO'));
+    } catch(e) {
+      window._setSS('err','Error al guardar: '+e.message);
+      console.error('Firebase save error:', e);
+    }
+  };
+
+  // Escuchar cambios en tiempo real
+  window._setSS('syncing','Conectando a Firebase...');
+  onSnapshot(docRef, (snapshot) => {
+    if(snapshot.exists()){
+      const remote = snapshot.data();
+      // Actualizar estado global
+      if(window._S) window._S = {...window._S, ...remote};
+      localStorage.setItem('kc_v4', JSON.stringify(window._S));
+      window._setSS('ok','Firebase · '+new Date().toLocaleTimeString('es-CO'));
+      const fbDot = document.getElementById('fb-dot');
+      const fbTxt = document.getElementById('fb-status-text');
+      if(fbDot) fbDot.className='sync-dot ok';
+      if(fbTxt) fbTxt.textContent='Conectado — sincronización en tiempo real activa';
+      if(window._renderAll) window._renderAll();
+    } else {
+      // Primera vez: subir datos locales
+      if(window._S && window._fbSave) window._fbSave(window._S);
+    }
+  }, (err) => {
+    window._setSS('err','Error Firebase: '+err.code);
+    console.error('Firestore listener error:', err);
+  });
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -128,20 +180,27 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 @media print{nav,.sync-bar,.no-print{display:none!important}.page{display:block!important;padding:0}}
 @media(max-width:720px){.g2,.g3,.g4{grid-template-columns:1fr}.fr,.fr3{grid-template-columns:1fr}}
 </style>
+<script>
+// Disponible inmediatamente antes de que cargue el resto del JS
+function _nav(id){
+  if(typeof showPage==='function') showPage(id);
+  else document.addEventListener('DOMContentLoaded',function(){showPage(id);},{once:true});
+}
+</script>
 </head>
 <body>
-<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Sin conexión a Google Drive — datos guardados localmente</span><button class="btn btn-outline btn-xs no-print" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)" onclick="showPage('config')">Conectar Drive</button></div>
+<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Conectando a Firebase...</span><button class="btn btn-outline btn-xs no-print" id="sync-btn" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)" onclick="sincronizarManual()">🔄 Sincronizar</button></div>
 <nav>
   <div class="nav-brand">Kirsten <span>Café</span></div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('dashboard')">Inicio</button>
-    <button class="nav-tab" onclick="showPage('cotizacion')">Nueva Cotización</button>
-    <button class="nav-tab" onclick="showPage('lista')">Cotizaciones</button>
-    <button class="nav-tab" onclick="showPage('evento')">Checklist Evento</button>
-    <button class="nav-tab" onclick="showPage('inventario')">Inventario</button>
-    <button class="nav-tab" onclick="showPage('recetario')">Recetario</button>
-    <button class="nav-tab" onclick="showPage('movimientos')">Movimientos</button>
-    <button class="nav-tab" onclick="showPage('config')">⚙️ Config</button>
+    <button class="nav-tab active" onclick="_nav('dashboard')">Inicio</button>
+    <button class="nav-tab" onclick="_nav('cotizacion')">Nueva Cotización</button>
+    <button class="nav-tab" onclick="_nav('lista')">Cotizaciones</button>
+    <button class="nav-tab" onclick="_nav('evento')">Checklist Evento</button>
+    <button class="nav-tab" onclick="_nav('inventario')">Inventario</button>
+    <button class="nav-tab" onclick="_nav('recetario')">Recetario</button>
+    <button class="nav-tab" onclick="_nav('movimientos')">Movimientos</button>
+    <button class="nav-tab" onclick="_nav('config')">⚙️ Config</button>
   </div>
   <div class="nav-right"><span class="badge" id="badge-alertas" style="display:none">0</span></div>
 </nav>
@@ -180,6 +239,32 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
       <div class="card">
         <div class="card-title">Tipo de Barra</div>
         <div class="bgrid" id="barra-sel"></div>
+        <!-- BEBIDAS SELECTOR -->
+        <div id="bebidas-panel" style="display:none;margin-top:16px;border-top:1px solid var(--cream3);padding-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:12px;font-weight:600;color:var(--coffee)">☕ Bebidas del menú para este evento</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-outline btn-xs" onclick="selTodasBebidas()">Seleccionar todas</button>
+              <button class="btn btn-outline btn-xs" onclick="deselTodasBebidas()">Ninguna</button>
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">Marca solo las bebidas que se van a ofrecer en este evento específico.</div>
+          <div id="bebidas-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px"></div>
+          <!-- BEBIDA PERSONALIZADA -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--cream3)">
+            <div style="font-size:12px;font-weight:600;color:var(--coffee);margin-bottom:8px">+ Bebida personalizada (no está en el recetario)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input id="beb-custom-nom" type="text" placeholder="Nombre de la bebida" style="flex:1;min-width:160px">
+              <input id="beb-custom-costo" type="number" placeholder="Costo est. COP" style="width:130px" min="0">
+              <button class="btn btn-outline btn-sm" onclick="addBebidaCustom()">+ Añadir</button>
+            </div>
+          </div>
+          <!-- RESUMEN BEBIDAS -->
+          <div id="bebidas-resumen" style="margin-top:12px;background:var(--cream);border-radius:8px;padding:10px 14px;font-size:12.5px;display:none">
+            <div style="font-weight:600;color:var(--coffee);margin-bottom:6px">Menú seleccionado:</div>
+            <div id="bebidas-resumen-lista"></div>
+          </div>
+        </div>
       </div>
       <div class="card">
         <div class="card-title">Personal del evento <button class="btn btn-outline btn-xs no-print" onclick="addPersonal()">+ Añadir</button></div>
@@ -263,8 +348,9 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     </div>
   </div>
   <div class="stabs">
-    <button class="stab active" onclick="evTab('salida')">📦 Salida de insumos</button>
-    <button class="stab" onclick="evTab('retorno')">↩ Sobrante</button>
+    <button class="stab active" onclick="evTab('salida')">📦 Insumos (salida)</button>
+    <button class="stab" onclick="evTab('equipos')">🔧 Equipos (salida)</button>
+    <button class="stab" onclick="evTab('retorno')">↩ Sobrantes</button>
     <button class="stab" onclick="evTab('resultado')">📊 Resultado</button>
   </div>
   <div id="ev-salida">
@@ -275,13 +361,32 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     </div>
     <div class="btn-group no-print"><button class="btn btn-primary" onclick="confirmarSalida()">✅ Confirmar salida → Sobrante</button></div>
   </div>
+  <div id="ev-equipos" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Equipos y elementos que salen al evento <button class="btn btn-outline btn-sm no-print" onclick="addEquipoEvento()">+ Añadir</button></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Registra qué maquinaria y elementos llevas al evento. Al finalizar puedes confirmar que regresaron.</div>
+      <div id="ev-equipos-list"></div>
+    </div>
+    <div class="btn-group no-print">
+      <button class="btn btn-primary" onclick="confirmarEquipos()">✅ Confirmar equipos → Sobrantes</button>
+      <button class="btn btn-outline" onclick="evTab('salida')">← Volver</button>
+    </div>
+  </div>
   <div id="ev-retorno" style="display:none">
-    <div class="card">
-      <div class="card-title">Sobrante al finalizar el evento</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Ingresa lo que <strong>sobró</strong> de cada ítem. Deja en 0 si se consumió todo.</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Sobrante de insumos al finalizar</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Ingresa lo que <strong>sobró</strong> de cada insumo. Deja en 0 si se consumió todo.</div>
       <div id="ev-retorno-list"></div>
     </div>
-    <div class="btn-group no-print"><button class="btn btn-sage" onclick="cerrarEvento()">🏁 Cerrar evento y actualizar inventario</button><button class="btn btn-outline" onclick="evTab('salida')">← Volver</button></div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Retorno de equipos y elementos</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Confirma qué equipos regresaron en buen estado. Deja desmarcado si algo quedó dañado o no regresó.</div>
+      <div id="ev-equipos-retorno-list"></div>
+    </div>
+    <div class="btn-group no-print">
+      <button class="btn btn-sage" onclick="cerrarEvento()">🏁 Cerrar evento y actualizar inventario</button>
+      <button class="btn btn-outline" onclick="evTab('equipos')">← Volver</button>
+    </div>
   </div>
   <div id="ev-resultado" style="display:none">
     <div class="card"><div class="card-title">Consumo real</div><div class="tw"><table><thead><tr><th>Insumo</th><th>Salió</th><th>Sobró</th><th>Consumido</th><th>Costo est.</th></tr></thead><tbody id="ev-res-tb"></tbody></table></div></div>
@@ -336,26 +441,20 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
   <div class="page-title">⚙️ Configuración</div><div class="page-sub">Administra insumos, recetas, personal y sincronización con Google Drive.</div>
 
   <div class="card">
-    <div class="card-title">☁️ Google Drive — sincronización entre dispositivos</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Conecta Google Drive para compartir datos entre todos tus dispositivos. Se guarda un archivo <code>kirsten-data.json</code> en tu Drive.</p>
-    <div class="fr">
-      <div class="fg"><label>ID del archivo en Drive</label><input id="cfg-drive-id" type="text" placeholder="ID del archivo JSON"></div>
-      <div class="fg"><label>Token de acceso OAuth</label><input id="cfg-drive-token" type="password" placeholder="Token OAuth de Google"></div>
+    <div class="card-title">☁️ Firebase — Base de datos en la nube</div>
+    <div id="fb-status-card" style="padding:12px;background:var(--cream);border-radius:8px;font-size:13px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="sync-dot" id="fb-dot"></div>
+        <span id="fb-status-text">Verificando conexión...</span>
+      </div>
     </div>
-    <div class="btn-group no-print">
-      <button class="btn btn-primary" onclick="guardarDrive()">Guardar configuración</button>
-      <button class="btn btn-outline" onclick="syncDrive(true)">🔄 Sincronizar ahora</button>
-      <button class="btn btn-outline" onclick="exportarBackup()">⬇ Backup JSON</button>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">La app está conectada a Firebase Firestore. Los datos se sincronizan automáticamente entre todos los dispositivos en tiempo real.</p>
+    <div class="btn-group no-print" style="margin-top:0">
+      <button class="btn btn-primary" onclick="sincronizarManual()">🔄 Sincronizar ahora</button>
+      <button class="btn btn-outline" onclick="exportarBackup()">⬇ Backup JSON local</button>
       <button class="btn btn-sage" onclick="document.getElementById('imp-file').click()">⬆ Restaurar backup</button>
     </div>
     <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importarBackup(this)">
-    <div style="margin-top:14px;background:var(--cream);padding:14px;border-radius:8px;font-size:12.5px;color:var(--muted);line-height:1.8">
-      <strong style="color:var(--coffee)">Cómo conectar:</strong><br>
-      1. Crea un archivo vacío <code>kirsten-data.json</code> en tu Google Drive.<br>
-      2. Clic derecho → "Obtener enlace" → copia el ID (la parte entre /d/ y /view).<br>
-      3. Ve a <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--gold)">OAuth Playground</a>, autoriza "Drive API v3 → drive.file", genera el token y pégalo.<br>
-      4. Guarda y sincroniza. Desde cualquier dispositivo repite el paso 3 para obtener un token fresco.
-    </div>
   </div>
 
   <div class="card">
@@ -365,7 +464,8 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 
   <div class="card">
     <div class="card-title">🔧 Maquinaria (depreciación automática) <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div>
-    <div class="tw"><table><thead><tr><th>Equipo</th><th>Valor compra</th><th>Vida útil</th><th>Depreciación/día</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">La vida útil se expresa en <strong>días de uso efectivo</strong> (ej: 80 días/año × 5 años = 400 días). Esto da una depreciación más real para un negocio de eventos.</div>
+    <div class="tw"><table><thead><tr><th>Equipo</th><th>Valor compra</th><th>Días de uso total</th><th>Depreciación/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div>
   </div>
 
   <div class="card">
@@ -389,10 +489,10 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 <div class="mo" id="mo-ver"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-ver')">✕</button><div id="ver-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button><button class="btn btn-gold" onclick="irChecklist()">📦 Abrir en Checklist</button><button class="btn btn-outline" onclick="closeM('mo-ver')">Cerrar</button></div></div></div>
 <div class="mo" id="mo-edit"><div class="modal"><button class="mc" onclick="closeM('mo-edit')">✕</button><div class="modal-title">Editar Cotización</div><input type="hidden" id="ec-id"><div class="fr"><div class="fg"><label>Cliente</label><input id="ec-cli" type="text"></div><div class="fg"><label>Fecha</label><input id="ec-fecha" type="date"></div></div><div class="fr"><div class="fg"><label>Personas</label><input id="ec-per" type="number"></div><div class="fg"><label>Precio cobrado</label><input id="ec-precio" type="number"></div></div><div class="fr"><div class="fg"><label>Estado</label><select id="ec-estado"><option>Pendiente</option><option>Confirmado</option><option>En proceso</option><option>Completado</option><option>Cancelado</option></select></div><div class="fg"><label>Notas</label><input id="ec-notas" type="text"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarEdit()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-edit')">Cancelar</button></div></div></div>
 <div class="mo" id="mo-mov"><div class="modal"><button class="mc" onclick="closeM('mo-mov')">✕</button><div class="modal-title">Registrar movimiento</div><div class="fr"><div class="fg"><label>Ítem</label><select id="mov-item"></select></div><div class="fg"><label>Tipo</label><select id="mov-tipo"><option value="COMPRA">COMPRA (entrada +)</option><option value="SALIDA_EVENTO">SALIDA_EVENTO (resta −)</option><option value="RETORNO_EVENTO">RETORNO_EVENTO (+)</option><option value="PERDIDA">PÉRDIDA (resta −)</option><option value="AJUSTE">AJUSTE (nuevo total)</option></select></div></div><div class="fr"><div class="fg"><label>Cantidad</label><input id="mov-cant" type="number" min="0"></div><div class="fg"><label>Motivo</label><input id="mov-motivo" type="text"></div></div><div class="fg"><label>Notas</label><input id="mov-notas" type="text"></div><div class="btn-group"><button class="btn btn-primary" onclick="regMov()">Registrar</button><button class="btn btn-outline" onclick="closeM('mo-mov')">Cancelar</button></div></div></div>
-<div class="mo" id="mo-ins"><div class="modal"><button class="mc" onclick="closeM('mo-ins')">✕</button><div class="modal-title" id="ins-title">Añadir insumo</div><input type="hidden" id="ins-eid"><div class="fr"><div class="fg"><label>Nombre</label><input id="ins-nom" type="text"></div><div class="fg"><label>Categoría</label><select id="ins-cat"><option>Insumo</option><option>Maquinaria</option><option>Elementos</option></select></div></div><div class="fr"><div class="fg"><label>Unidad</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por unidad (COP)</label><input id="ins-costo" type="number" min="0" step="0.01"></div></div><div class="fr"><div class="fg"><label>Stock</label><input id="ins-stock" type="number" min="0" value="0"></div><div class="fg"><label>Stock mínimo</label><input id="ins-min" type="number" min="0" value="0"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarIns()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-ins')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-ins"><div class="modal"><button class="mc" onclick="closeM('mo-ins')">✕</button><div class="modal-title" id="ins-title">Añadir insumo</div><input type="hidden" id="ins-eid"><div class="fr"><div class="fg"><label>Nombre</label><input id="ins-nom" type="text"></div><div class="fg"><label>Categoría</label><select id="ins-cat"><option>Insumo</option><option>Maquinaria</option><option>Elementos</option></select></div></div><div class="fr"><div class="fg"><label>Unidad base</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por unidad base (COP)</label><input id="ins-costo" type="number" min="0" step="0.01"></div></div><div class="fr"><div class="fg"><label>Nombre del paquete (ej: bolsa, caja)</label><input id="ins-paqnom" type="text" placeholder="paquete"></div><div class="fg"><label>Unidades base por paquete</label><input id="ins-paqcant" type="number" min="1" value="1" placeholder="ej: 2500 para 2500g"></div></div><div class="fr"><div class="fg"><label>Stock (unidades base)</label><input id="ins-stock" type="number" min="0" value="0"></div><div class="fg"><label>Stock mínimo (unidades base)</label><input id="ins-min" type="number" min="0" value="0"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarIns()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-ins')">Cancelar</button></div></div></div>
 <div class="mo" id="mo-maq"><div class="modal"><button class="mc" onclick="closeM('mo-maq')">✕</button><div class="modal-title">Maquinaria / Equipo</div><input type="hidden" id="maq-eid"><div class="fr"><div class="fg"><label>Nombre del equipo</label><input id="maq-nom" type="text"></div><div class="fg"><label>Valor de compra (COP)</label><input id="maq-val" type="number" oninput="calcDep()"></div></div><div class="fr"><div class="fg"><label>Vida útil (días)</label><input id="maq-vida" type="number" min="1" value="1825" oninput="calcDep()"></div><div class="fg"><label>Depreciación/día (auto)</label><input id="maq-dep" readonly style="background:var(--cream);color:var(--muted)"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarMaq()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-maq')">Cancelar</button></div></div></div>
 <div class="mo" id="mo-rec"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-rec')">✕</button><div class="modal-title" id="rec-title">Nueva bebida</div><input type="hidden" id="rec-eid"><div class="fr"><div class="fg"><label>Nombre de la bebida</label><input id="rec-nom" type="text"></div><div class="fg"><label>Barra</label><select id="rec-barra"><option>Colombiana</option><option>Italiana</option><option>Filtrados</option><option>Carajillos</option><option>Infusiones</option><option>Premium</option><option>Blanca</option><option>Impresora</option></select></div></div><div class="fr"><div class="fg"><label>Método</label><input id="rec-met" type="text"></div><div class="fg"><label>Rendimiento</label><input id="rec-rend" type="text"></div></div><div class="fg"><label>Ingredientes (descripción)</label><textarea id="rec-ings" rows="2"></textarea></div><div class="fg"><label>Costo estimado (COP)</label><input id="rec-costo" type="number" min="0"></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarRec()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-rec')">Cancelar</button></div></div></div>
-<div class="mo" id="mo-rol"><div class="modal"><button class="mc" onclick="closeM('mo-rol')">✕</button><div class="modal-title">Tipo de personal</div><input type="hidden" id="rol-eid"><div class="fr"><div class="fg"><label>Nombre del rol</label><input id="rol-nom" type="text" placeholder="Barista principal"></div><div class="fg"><label>Tarifa por hora (COP)</label><input id="rol-tar" type="number" min="0"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarRol()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-rol')">Cancelar</button></div></div></div>
+<div class="mo" id="mo-rol"><div class="modal"><button class="mc" onclick="closeM('mo-rol')">✕</button><div class="modal-title">Tipo de personal</div><input type="hidden" id="rol-eid"><div class="fr"><div class="fg"><label>Nombre del rol</label><input id="rol-nom" type="text" placeholder="Barista senior"></div><div class="fg"><label>Tarifa por día (COP)</label><input id="rol-tar" type="number" min="0"></div></div><div class="btn-group"><button class="btn btn-primary" onclick="guardarRol()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-rol')">Cancelar</button></div></div></div>
 
 <div class="toast" id="toast"></div>
 <script>
@@ -406,45 +506,47 @@ const DEF_BARRAS=[
   {id:'tes',icon:'🍵',name:'Barra de Tés e Infusiones',desc:'Tés naturales e infusiones herbales y frutales. Sin cafeína.',bebidas:['Tizana frutal','Té Chai','Infusión jengibre','Aromáticas']},
   {id:'blanca',icon:'🏳️',name:'Barra Blanca',desc:'Multimarca. Cafés de especialidad de distintas regiones.',bebidas:['Cafés de especialidad','Catas dirigidas']},
   {id:'impresora',icon:'🖨️',name:'Barra con Impresora',desc:'Tu logo impreso en la espuma. El diferenciador definitivo.',bebidas:['Cappuccino con logo','Latte con mensaje','Mocha personalizado']},
+  {id:'personalizada',icon:'✨',name:'Barra Personalizada',desc:'Mezcla bebidas de cualquier tipo de barra según la petición del cliente.',bebidas:[]},
 ];
+// paqNom = nombre del paquete, paqCant = unidades base por paquete
 const DEF_INS=[
-  {id:'INS001',nombre:'Café Premium Molido',cat:'Insumo',unidad:'gramo',stock:2000,minimo:500,costo:48},
-  {id:'INS002',nombre:'Café Premium Grano',cat:'Insumo',unidad:'gramo',stock:1000,minimo:500,costo:48},
-  {id:'INS003',nombre:'Leche entera',cat:'Insumo',unidad:'ml',stock:10000,minimo:2000,costo:2.99},
-  {id:'INS004',nombre:'Leche de almendras',cat:'Insumo',unidad:'ml',stock:2000,minimo:500,costo:7.99},
-  {id:'INS005',nombre:'Instacream',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:197},
-  {id:'INS006',nombre:'Azúcar pitillo',cat:'Insumo',unidad:'unidad',stock:300,minimo:100,costo:67},
-  {id:'INS007',nombre:'Panela porciones',cat:'Insumo',unidad:'unidad',stock:150,minimo:50,costo:150},
-  {id:'INS008',nombre:'Endulzante',cat:'Insumo',unidad:'unidad',stock:500,minimo:100,costo:54.9},
-  {id:'INS009',nombre:'Vasos 4oz',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:82},
-  {id:'INS010',nombre:'Vasos 6oz',cat:'Insumo',unidad:'unidad',stock:150,minimo:50,costo:148.36},
-  {id:'INS011',nombre:'Vasos 7oz',cat:'Insumo',unidad:'unidad',stock:100,minimo:50,costo:87},
-  {id:'INS012',nombre:'Vaso Whisky Plástico',cat:'Insumo',unidad:'unidad',stock:50,minimo:25,costo:480},
-  {id:'INS013',nombre:'Mezcladores',cat:'Insumo',unidad:'unidad',stock:500,minimo:100,costo:12.2},
-  {id:'INS014',nombre:'Filtros',cat:'Insumo',unidad:'unidad',stock:100,minimo:20,costo:396},
-  {id:'INS015',nombre:'Aromática Tizana',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:211},
-  {id:'INS016',nombre:'Infusiones Mix',cat:'Insumo',unidad:'unidad',stock:100,minimo:30,costo:916},
-  {id:'INS017',nombre:'Té Chai',cat:'Insumo',unidad:'gramo',stock:500,minimo:100,costo:56.9},
-  {id:'INS018',nombre:'Jengibre seco',cat:'Insumo',unidad:'gramo',stock:200,minimo:50,costo:297.5},
-  {id:'INS019',nombre:'Amaretto',cat:'Insumo',unidad:'ml',stock:750,minimo:200,costo:48.6},
-  {id:'INS020',nombre:'Crema de Whisky',cat:'Insumo',unidad:'ml',stock:750,minimo:200,costo:45.6},
-  {id:'INS021',nombre:'Hielo',cat:'Insumo',unidad:'gramo',stock:20000,minimo:2000,costo:0.8},
-  {id:'INS022',nombre:'Botellón de agua',cat:'Insumo',unidad:'ml',stock:20000,minimo:5000,costo:0.8},
-  {id:'INS023',nombre:'Bolsas de basura',cat:'Insumo',unidad:'unidad',stock:20,minimo:5,costo:220},
-  {id:'MAQ001',nombre:'Máquina espresso',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:3500000},
-  {id:'MAQ002',nombre:'Molino de café',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:800000},
-  {id:'MAQ003',nombre:'Vaporizador de leche',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:250000},
-  {id:'MAQ004',nombre:'Nevera portátil',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:350000},
-  {id:'MAQ005',nombre:'Set utensilios',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:200000},
-  {id:'ELE001',nombre:'Mantel de barra',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:80000},
-  {id:'ELE002',nombre:'Uniforme barista',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:120000},
+  {id:'INS001',nombre:'Café Premium Molido',cat:'Insumo',unidad:'gramo',stock:2000,minimo:500,costo:48,paqNom:'paquete',paqCant:2500},
+  {id:'INS002',nombre:'Café Premium Grano',cat:'Insumo',unidad:'gramo',stock:1000,minimo:500,costo:48,paqNom:'paquete',paqCant:2500},
+  {id:'INS003',nombre:'Leche entera',cat:'Insumo',unidad:'ml',stock:10000,minimo:2000,costo:2.99,paqNom:'bolsa',paqCant:1000},
+  {id:'INS004',nombre:'Leche de almendras',cat:'Insumo',unidad:'ml',stock:2000,minimo:500,costo:7.99,paqNom:'caja',paqCant:1000},
+  {id:'INS005',nombre:'Instacream',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:197,paqNom:'paquete',paqCant:100},
+  {id:'INS006',nombre:'Azúcar pitillo',cat:'Insumo',unidad:'unidad',stock:300,minimo:100,costo:67,paqNom:'paquete',paqCant:100},
+  {id:'INS007',nombre:'Panela porciones',cat:'Insumo',unidad:'unidad',stock:150,minimo:50,costo:150,paqNom:'paquete',paqCant:100},
+  {id:'INS008',nombre:'Endulzante',cat:'Insumo',unidad:'unidad',stock:500,minimo:100,costo:54.9,paqNom:'caja',paqCant:1000},
+  {id:'INS009',nombre:'Vasos 4oz',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:82,paqNom:'paquete',paqCant:50},
+  {id:'INS010',nombre:'Vasos 6oz',cat:'Insumo',unidad:'unidad',stock:150,minimo:50,costo:148.36,paqNom:'paquete',paqCant:50},
+  {id:'INS011',nombre:'Vasos 7oz',cat:'Insumo',unidad:'unidad',stock:100,minimo:50,costo:87,paqNom:'paquete',paqCant:50},
+  {id:'INS012',nombre:'Vaso Whisky Plástico',cat:'Insumo',unidad:'unidad',stock:50,minimo:25,costo:480,paqNom:'paquete',paqCant:25},
+  {id:'INS013',nombre:'Mezcladores',cat:'Insumo',unidad:'unidad',stock:500,minimo:100,costo:12.2,paqNom:'paquete',paqCant:500},
+  {id:'INS014',nombre:'Filtros',cat:'Insumo',unidad:'unidad',stock:100,minimo:20,costo:396,paqNom:'paquete',paqCant:50},
+  {id:'INS015',nombre:'Aromática Tizana',cat:'Insumo',unidad:'unidad',stock:200,minimo:50,costo:211,paqNom:'caja',paqCant:100},
+  {id:'INS016',nombre:'Infusiones Mix',cat:'Insumo',unidad:'unidad',stock:100,minimo:30,costo:916,paqNom:'caja',paqCant:100},
+  {id:'INS017',nombre:'Té Chai',cat:'Insumo',unidad:'gramo',stock:500,minimo:100,costo:56.9,paqNom:'bolsa',paqCant:1580},
+  {id:'INS018',nombre:'Jengibre seco',cat:'Insumo',unidad:'gramo',stock:200,minimo:50,costo:297.5,paqNom:'paquete',paqCant:100},
+  {id:'INS019',nombre:'Amaretto',cat:'Insumo',unidad:'ml',stock:750,minimo:200,costo:48.6,paqNom:'botella',paqCant:750},
+  {id:'INS020',nombre:'Crema de Whisky',cat:'Insumo',unidad:'ml',stock:750,minimo:200,costo:45.6,paqNom:'botella',paqCant:750},
+  {id:'INS021',nombre:'Hielo',cat:'Insumo',unidad:'gramo',stock:20000,minimo:2000,costo:0.8,paqNom:'bolsa',paqCant:20000},
+  {id:'INS022',nombre:'Botellón de agua',cat:'Insumo',unidad:'ml',stock:20000,minimo:5000,costo:0.8,paqNom:'botellón',paqCant:20000},
+  {id:'INS023',nombre:'Bolsas de basura',cat:'Insumo',unidad:'unidad',stock:20,minimo:5,costo:220,paqNom:'paquete',paqCant:10},
+  {id:'MAQ001',nombre:'Máquina espresso',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:3500000,paqNom:'unidad',paqCant:1},
+  {id:'MAQ002',nombre:'Molino de café',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:800000,paqNom:'unidad',paqCant:1},
+  {id:'MAQ003',nombre:'Vaporizador de leche',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:250000,paqNom:'unidad',paqCant:1},
+  {id:'MAQ004',nombre:'Nevera portátil',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:350000,paqNom:'unidad',paqCant:1},
+  {id:'MAQ005',nombre:'Set utensilios',cat:'Maquinaria',unidad:'unidad',stock:1,minimo:1,costo:200000,paqNom:'unidad',paqCant:1},
+  {id:'ELE001',nombre:'Mantel de barra',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:80000,paqNom:'unidad',paqCant:1},
+  {id:'ELE002',nombre:'Uniforme barista',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:120000,paqNom:'unidad',paqCant:1},
 ];
 const DEF_MAQ=[
-  {id:'M1',nombre:'Máquina espresso',valor:3500000,vidaDias:1825},
-  {id:'M2',nombre:'Molino de café',valor:800000,vidaDias:1825},
-  {id:'M3',nombre:'Vaporizador de leche',valor:250000,vidaDias:730},
-  {id:'M4',nombre:'Nevera portátil',valor:350000,vidaDias:1095},
-  {id:'M5',nombre:'Set utensilios',valor:200000,vidaDias:365},
+  {id:'M1',nombre:'Máquina espresso',valor:3500000,vidaDias:400},
+  {id:'M2',nombre:'Molino de café',valor:800000,vidaDias:400},
+  {id:'M3',nombre:'Vaporizador de leche',valor:250000,vidaDias:160},
+  {id:'M4',nombre:'Nevera portátil',valor:350000,vidaDias:240},
+  {id:'M5',nombre:'Set utensilios',valor:200000,vidaDias:80},
 ];
 const DEF_REC=[
   {id:'R01',nombre:'Prensa Francesa 350ml',barra:'Filtrados',metodo:'Infusión',rend:'350 ml',ingredientes:'Café grano 25g, Agua 275ml',costo:5760},
@@ -461,9 +563,9 @@ const DEF_REC=[
   {id:'R12',nombre:'Té Chai',barra:'Infusiones',metodo:'Infusión',rend:'250 ml',ingredientes:'Té Chai 4g, Leche 150ml',costo:870},
 ];
 const DEF_ROLES=[
-  {id:'ROL1',nombre:'Barista principal',tarifa:25000},
-  {id:'ROL2',nombre:'Barista auxiliar',tarifa:18000},
-  {id:'ROL3',nombre:'Coordinador de eventos',tarifa:30000},
+  {id:'ROL1',nombre:'Barista senior',tarifa:220000},
+  {id:'ROL2',nombre:'Barista junior',tarifa:120000},
+  {id:'ROL3',nombre:'Coordinador de eventos',tarifa:280000},
 ];
 const DEF_LC={
   colombiana:[{id:'INS001',nombre:'Café Molido',cant:18,unidad:'g'},{id:'INS007',nombre:'Panela porciones',cant:2,unidad:'und'},{id:'INS009',nombre:'Vasos 4oz',cant:2.5,unidad:'und'},{id:'INS022',nombre:'Agua',cant:180,unidad:'ml'}],
@@ -482,6 +584,8 @@ let personal_cot=[];
 let barraActiva=null;
 let cotVerID=null;
 let evItems=[];
+let bebidasSeleccionadas=[]; // {id, nombre, costo, custom}
+let insumosAjustados=[]; // insumos calculados y ajustables para la cot activa
 
 function loadS(){
   try{
@@ -493,38 +597,42 @@ function loadS(){
     if(!S.recetas?.length)S.recetas=JSON.parse(JSON.stringify(DEF_REC));
     if(!S.roles?.length)S.roles=JSON.parse(JSON.stringify(DEF_ROLES));
     if(!S.cotizaciones)S.cotizaciones=[];if(!S.movimientos)S.movimientos=[];
-    if(!S.eventos)S.eventos=[];if(!S.drive)S.drive={fileId:'',token:''};
+    if(!S.eventos)S.eventos=[];
+    window._S = S;
   }catch(e){console.error(e);}
 }
-function saveS(){localStorage.setItem('kc_v4',JSON.stringify(S));syncDrive(false);}
+// ═══════════════════════════ FIREBASE BRIDGE ═══════════════════════════
+// Las funciones reales de Firebase están en el módulo ES al inicio del archivo.
+// Este bridge conecta el estado global con esas funciones.
 
-// ═══════════════════════════ DRIVE ═══════════════════════════
-let syncT=null;
-function setSS(st,msg){document.getElementById('sync-dot').className='sync-dot '+st;document.getElementById('sync-text').textContent=msg;}
-async function syncDrive(manual=false){
-  if(!S.drive.fileId||!S.drive.token){if(manual)toast('Configura Drive primero');return;}
-  clearTimeout(syncT);
-  syncT=setTimeout(async()=>{
-    setSS('syncing','Sincronizando con Drive...');
-    try{
-      const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${S.drive.fileId}?uploadType=media`,{method:'PATCH',headers:{'Authorization':'Bearer '+S.drive.token,'Content-Type':'application/json'},body:JSON.stringify(S)});
-      if(r.ok){setSS('ok','Sincronizado — '+new Date().toLocaleTimeString('es-CO'));if(manual)toast('✅ Sincronizado con Drive');}
-      else{const e=await r.json();setSS('err','Error Drive: '+(e?.error?.message||r.status));if(manual)toast('❌ Error: '+r.status);}
-    }catch(e){setSS('err','Sin conexión a Drive');}
-  },manual?0:2500);
+function setSS(st,msg){
+  const dot=document.getElementById('sync-dot');
+  const txt=document.getElementById('sync-text');
+  if(dot) dot.className='sync-dot '+st;
+  if(txt) txt.textContent=msg;
 }
-async function cargarDrive(){
-  if(!S.drive.fileId||!S.drive.token)return;
-  setSS('syncing','Cargando desde Drive...');
-  try{
-    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${S.drive.fileId}?alt=media`,{headers:{'Authorization':'Bearer '+S.drive.token}});
-    if(r.ok){const d=await r.json();const drv=S.drive;S={...S,...d,drive:drv};localStorage.setItem('kc_v4',JSON.stringify(S));setSS('ok','Datos cargados — '+new Date().toLocaleTimeString('es-CO'));renderAll();toast('✅ Datos cargados desde Drive');}
-    else setSS('err','No se pudo leer Drive');
-  }catch(e){setSS('err','Sin conexión a Drive');}
+// Exponer setSS para que el módulo Firebase lo pueda llamar
+window._setSS = setSS;
+
+function saveS(){
+  localStorage.setItem('kc_v4',JSON.stringify(S));
+  // Guardar en Firebase via el módulo ES
+  if(window._fbSave){
+    window._fbSave(JSON.parse(JSON.stringify(S)));
+  }
 }
-function guardarDrive(){S.drive.fileId=document.getElementById('cfg-drive-id').value.trim();S.drive.token=document.getElementById('cfg-drive-token').value.trim();saveS();toast('Configuración guardada');cargarDrive();}
+
+function sincronizarManual(){
+  if(window._fbSave){
+    window._fbSave(JSON.parse(JSON.stringify(S)));
+    toast('✅ Datos enviados a Firebase');
+  } else {
+    toast('Firebase no está listo aún');
+  }
+}
+
 function exportarBackup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download='kirsten-backup-'+new Date().toISOString().split('T')[0]+'.json';a.click();toast('Backup descargado');}
-function importarBackup(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);const drv=S.drive;S={...S,...d,drive:drv};saveS();renderAll();toast('✅ Backup restaurado');}catch(e){toast('❌ Archivo inválido');}};r.readAsText(f);inp.value='';}
+function importarBackup(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);S={...S,...d};saveS();renderAll();toast('✅ Backup restaurado');}catch(e){toast('❌ Archivo inválido');}};r.readAsText(f);inp.value='';}
 
 // ═══════════════════════════ HELPERS ═══════════════════════════
 const fmt=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0);
@@ -532,7 +640,6 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).substr(2,4);
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 
 // ═══════════════════════════ NAV ═══════════════════════════
 function showPage(id){
@@ -541,6 +648,16 @@ function showPage(id){
   document.getElementById('page-'+id).classList.add('active');
   const map={dashboard:0,cotizacion:1,lista:2,evento:3,inventario:4,recetario:5,movimientos:6,config:7};
   if(map[id]!==undefined)document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
+  if(id==='cotizacion'){
+    // Reset estado cotización
+    barraActiva=null;
+    bebidasSeleccionadas=[];
+    personal_cot=[];
+    renderBarras();
+    renderPersonal();
+    document.getElementById('bebidas-panel').style.display='none';
+    calcCot();
+  }
   if(id==='dashboard')renderDash();
   if(id==='lista'){renderCots();fillEvSel();}
   if(id==='inventario')renderInv();
@@ -554,21 +671,114 @@ function showPage(id){
 function renderBarras(){
   document.getElementById('barra-sel').innerHTML=DEF_BARRAS.map(b=>`<div class="bcard ${barraActiva===b.id?'sel':''}" onclick="selBarra('${b.id}')"><div class="ck">✓</div><div class="bi">${b.icon}</div><div class="bn">${b.name}</div><div class="bd">${b.desc}</div></div>`).join('');
 }
-function selBarra(id){barraActiva=id;renderBarras();calcCot();}
+function selBarra(id){
+  barraActiva=id;
+  renderBarras();
+  // Pre-seleccionar bebidas de esta barra (o todas si es personalizada)
+  const recetasBarra = id==='personalizada' ? S.recetas : S.recetas.filter(r=>r.barra===DEF_BARRAS.find(b=>b.id===id)?.name.replace('Barra de ','').replace('Barra ',''));
+  // Para barras conocidas, preseleccionar todas sus recetas
+  if(id==='personalizada'){
+    bebidasSeleccionadas=[];
+  } else {
+    const nombreBarra = DEF_BARRAS.find(b=>b.id===id)?.name||'';
+    // Mapeo de id a nombre de barra en recetario
+    const mapaBarras={colombiana:'Colombiana',italiana:'Italiana',filtrados:'Filtrados',carajillos:'Carajillos',premium:'',tes:'Infusiones',blanca:'',impresora:''};
+    const catBarra=mapaBarras[id]||'';
+    const recsFiltradas = catBarra ? S.recetas.filter(r=>r.barra===catBarra) : S.recetas;
+    bebidasSeleccionadas = recsFiltradas.map(r=>({id:r.id,nombre:r.nombre,costo:r.costo,custom:false}));
+  }
+  renderBebidasPanel(id);
+  calcCot();
+}
+
+function renderBebidasPanel(barraId){
+  const panel=document.getElementById('bebidas-panel');
+  panel.style.display='block';
+  const lista=document.getElementById('bebidas-lista');
+  // Mostrar TODAS las recetas agrupadas por barra
+  const grupos={};
+  S.recetas.forEach(r=>{if(!grupos[r.barra])grupos[r.barra]=[];grupos[r.barra].push(r);});
+  let html='';
+  Object.keys(grupos).forEach(cat=>{
+    html+=`<div style="grid-column:1/-1;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:8px;margin-bottom:2px">${cat}</div>`;
+    grupos[cat].forEach(r=>{
+      const sel=bebidasSeleccionadas.some(b=>b.id===r.id);
+      html+=`<div onclick="toggleBebida('${r.id}','${r.nombre.replace(/'/g,"\\'")}',${r.costo})" style="padding:8px 12px;border:1.5px solid ${sel?'var(--gold)':'var(--cream3)'};background:${sel?'#fffbf2':'var(--white)'};border-radius:8px;cursor:pointer;transition:all .15s;user-select:none">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:16px;height:16px;border-radius:50%;background:${sel?'var(--gold)':'var(--cream3)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:white;font-weight:700">${sel?'✓':''}</div>
+          <div>
+            <div style="font-size:12.5px;font-weight:500;color:var(--text)">${r.nombre}</div>
+            <div style="font-size:10.5px;color:var(--muted)">${fmt(r.costo)}</div>
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+  lista.innerHTML=html;
+  renderBebidasResumen();
+}
+
+function toggleBebida(id,nombre,costo){
+  const idx=bebidasSeleccionadas.findIndex(b=>b.id===id);
+  if(idx>=0) bebidasSeleccionadas.splice(idx,1);
+  else bebidasSeleccionadas.push({id,nombre,costo,custom:false});
+  renderBebidasPanel(barraActiva);
+  calcCot();
+}
+
+function selTodasBebidas(){
+  bebidasSeleccionadas=S.recetas.map(r=>({id:r.id,nombre:r.nombre,costo:r.costo,custom:false}));
+  renderBebidasPanel(barraActiva);calcCot();
+}
+function deselTodasBebidas(){
+  bebidasSeleccionadas=bebidasSeleccionadas.filter(b=>b.custom);
+  renderBebidasPanel(barraActiva);calcCot();
+}
+
+function addBebidaCustom(){
+  const nom=document.getElementById('beb-custom-nom').value.trim();
+  const costo=+document.getElementById('beb-custom-costo').value||0;
+  if(!nom){toast('Escribe el nombre de la bebida');return;}
+  const id='custom-'+Date.now();
+  bebidasSeleccionadas.push({id,nombre:nom,costo,custom:true});
+  document.getElementById('beb-custom-nom').value='';
+  document.getElementById('beb-custom-costo').value='';
+  renderBebidasPanel(barraActiva);
+  calcCot();
+  toast('Bebida añadida: '+nom);
+}
+
+function renderBebidasResumen(){
+  const res=document.getElementById('bebidas-resumen');
+  const lista=document.getElementById('bebidas-resumen-lista');
+  if(!bebidasSeleccionadas.length){res.style.display='none';return;}
+  res.style.display='block';
+  lista.innerHTML=bebidasSeleccionadas.map(b=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--cream3);font-size:12.5px">
+      <span>${b.custom?'✨ ':''}<strong>${b.nombre}</strong></span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--muted)">${fmt(b.costo)}</span>
+        ${b.custom?`<button class="btn btn-danger btn-xs" onclick="quitarBebida('${b.id}')">✕</button>`:''}
+      </div>
+    </div>`).join('');
+}
+function quitarBebida(id){bebidasSeleccionadas=bebidasSeleccionadas.filter(b=>b.id!==id);renderBebidasPanel(barraActiva);calcCot();}
+
 
 // ═══════════════════════════ PERSONAL ═══════════════════════════
 function renderPersonal(){
   const el=document.getElementById('personal-list');
   if(!personal_cot.length){el.innerHTML='<div style="color:var(--muted2);font-size:12.5px;padding:6px 0">Sin personal. Haz clic en "+ Añadir" para agregar baristas.</div>';return;}
   el.innerHTML=personal_cot.map((p,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream2)">
-    <select style="flex:1;font-size:13px" onchange="personal_cot[${i}].rolId=this.value;calcCot()">${S.roles.map(r=>`<option value="${r.id}" ${p.rolId===r.id?'selected':''}>${r.nombre} — ${fmt(r.tarifa)}/h</option>`).join('')}</select>
-    <input type="number" style="width:75px" min="1" max="24" value="${p.horas}" placeholder="Horas" oninput="personal_cot[${i}].horas=+this.value;calcCot()" title="Horas trabajadas">
+    <select style="flex:1;font-size:13px" onchange="personal_cot[${i}].rolId=this.value;calcCot()">${S.roles.map(r=>`<option value="${r.id}" ${p.rolId===r.id?'selected':''}>${r.nombre} — ${fmt(r.tarifa)}/día</option>`).join('')}</select>
+    <input type="number" style="width:60px" min="1" max="30" value="${p.dias||1}" placeholder="Días" oninput="personal_cot[${i}].dias=+this.value;calcCot()" title="Días de evento">
+    <span style="font-size:11px;color:var(--muted)">día(s)</span>
     <span style="font-size:12px;color:var(--muted);width:85px;text-align:right">${fmt(calcPI(p))}</span>
     <button class="btn btn-danger btn-xs" onclick="personal_cot.splice(${i},1);renderPersonal();calcCot()">✕</button>
   </div>`).join('');
 }
-function calcPI(p){const r=S.roles.find(x=>x.id===p.rolId);return r?(r.tarifa*(p.horas||0)):0;}
-function addPersonal(){if(!S.roles.length){toast('Añade roles en Configuración primero');return;}personal_cot.push({rolId:S.roles[0].id,horas:4});renderPersonal();calcCot();}
+function calcPI(p){const r=S.roles.find(x=>x.id===p.rolId);return r?(r.tarifa*(p.dias||1)):0;}
+function addPersonal(){if(!S.roles.length){toast('Añade roles en Configuración primero');return;}personal_cot.push({rolId:S.roles[0].id,dias:1});renderPersonal();calcCot();}
 
 // ═══════════════════════════ CALC COTIZACIÓN ═══════════════════════════
 function calcCot(){
@@ -584,8 +794,18 @@ function calcCot(){
   const cliente=document.getElementById('f-cliente').value||'—';
 
   let costoIns=0;
-  if(barraActiva){(DEF_LC[barraActiva]||[]).forEach(item=>{const inv=S.inventario.find(i=>i.id===item.id);if(inv)costoIns+=inv.costo*item.cant*personas*1.1;});}
+  if(barraActiva){
+    if(bebidasSeleccionadas.length>0){
+      // Calcular costo basado en bebidas seleccionadas
+      const costoPorBebida=bebidasSeleccionadas.reduce((a,b)=>a+b.costo,0)/Math.max(bebidasSeleccionadas.length,1);
+      // Estimamos 2 bebidas promedio por persona
+      costoIns=costoPorBebida*2*personas*1.1;
+    } else {
+      (DEF_LC[barraActiva]||[]).forEach(item=>{const inv=S.inventario.find(i=>i.id===item.id);if(inv)costoIns+=inv.costo*item.cant*personas*1.1;});
+    }
+  }
   const costoPersonal=personal_cot.reduce((a,p)=>a+calcPI(p),0);
+  // Depreciación: vida útil en días de uso real (80 días/año de uso efectivo)
   const depDia=S.maquinaria.reduce((a,m)=>a+(m.valor/Math.max(m.vidaDias,1)),0);
   const costoDep=depDia*dias;
   const costoTotal=costoIns+costoPersonal+costoDep+trans+imp+otros;
@@ -622,6 +842,27 @@ function calcCot(){
 function renderLP(personas){
   const el=document.getElementById('lista-preview');
   if(!barraActiva){el.innerHTML='<div class="empty" style="padding:14px"><div class="empty-text" style="font-size:12px">Selecciona una barra</div></div>';return;}
+  if(bebidasSeleccionadas.length>0){
+    // Mostrar bebidas seleccionadas con costo estimado
+    let html='<div style="max-height:220px;overflow-y:auto">';
+    let ctotal=0;
+    bebidasSeleccionadas.forEach(b=>{
+      const costoEvento=b.costo*2*personas*1.1; // ~2 por persona con 10% margen
+      ctotal+=costoEvento;
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--cream2);font-size:12px">
+        <span>${b.custom?'✨ ':''}<strong>${b.nombre}</strong></span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="color:var(--muted)">${fmt(b.costo)}/prep</span>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+    html+=`<div style="margin-top:10px;padding:8px 0;border-top:1px solid var(--cream3);font-size:11.5px;color:var(--muted)">~2 bebidas × ${personas} personas × 1.1 margen</div>`;
+    html+=`<div style="display:flex;justify-content:space-between;padding-top:4px;font-size:12.5px"><span style="color:var(--muted)">Costo est. insumos</span><strong>${fmt(ctotal)}</strong></div>`;
+    el.innerHTML=html;
+    return;
+  }
+  // Fallback: lista genérica por barra
   const lista=DEF_LC[barraActiva]||[];
   let ctotal=0;
   let html='<div style="max-height:200px;overflow-y:auto">';
@@ -642,10 +883,14 @@ function guardarCot(){
   if(!b){toast('Selecciona un tipo de barra');return;}
   const cli=document.getElementById('f-cliente').value.trim();
   if(!cli){toast('Ingresa el nombre del cliente');return;}
+  if(barraActiva!=='personalizada'&&bebidasSeleccionadas.length===0){toast('Selecciona al menos una bebida del menú');return;}
+  const barraNameFinal = barraActiva==='personalizada'
+    ? '✨ Barra Personalizada'+(bebidasSeleccionadas.length?` (${bebidasSeleccionadas.length} bebidas)`:'')
+    : b.name+' '+b.icon;
   const n=calcCot();
   const cot={
     id:'COT-'+String(S.cotizaciones.length+1).padStart(3,'0'),
-    cliente:cli,barraId:barraActiva,barraName:b.name+' '+b.icon,
+    cliente:cli,barraId:barraActiva,barraName:barraNameFinal,
     fecha:document.getElementById('f-fecha').value||new Date().toISOString().split('T')[0],
     ciudad:document.getElementById('f-ciudad').value,lugar:document.getElementById('f-lugar').value,
     notas:document.getElementById('f-notas').value,
@@ -654,6 +899,7 @@ function guardarCot(){
     trans:n.trans,imp:n.imp,otros:n.otros,costoTotal:n.costoTotal,
     margen:n.margen,vMargen:n.vMargen,desc:n.desc,vDesc:n.vDesc,iva:n.iva,vIva:n.vIva,
     precioFinal:n.precioFinal,personal:JSON.parse(JSON.stringify(personal_cot)),
+    bebidas:JSON.parse(JSON.stringify(bebidasSeleccionadas)),
     listaCompras:(DEF_LC[barraActiva]||[]).map(i=>({...i,necesario:Math.ceil(i.cant*n.personas*1.1)})),
     estado:'Pendiente',creado:new Date().toISOString(),
   };
@@ -674,7 +920,8 @@ function genPDF(c){
     <div class="pdf-section"><h4>Servicio</h4>
       <div class="pdf-row"><span>Tipo de barra</span><strong>${c.barraName}</strong></div>
       <div class="pdf-row"><span>Asistentes</span><span>${c.personas} personas</span></div>
-      ${b?`<div style="font-size:12px;color:var(--muted);margin-top:8px;padding:8px 10px;background:var(--cream);border-radius:6px;line-height:1.6">${b.desc}<br><em>Incluye: ${b.bebidas.join(', ')}</em></div>`:''}
+      ${b?`<div style="font-size:12px;color:var(--muted);margin-top:8px;padding:8px 10px;background:var(--cream);border-radius:6px;line-height:1.6">${b.desc}</div>`:''}
+      ${c.bebidas&&c.bebidas.length?`<div style="margin-top:8px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:6px">Menú de bebidas</div>${c.bebidas.map(bv=>`<span style="display:inline-block;background:var(--cream2);border-radius:20px;padding:2px 10px;font-size:12px;margin:2px 3px 2px 0">${bv.custom?'✨ ':''}${bv.nombre}</span>`).join('')}</div>`:b?`<div style="font-size:12px;color:var(--muted);margin-top:4px"><em>Incluye: ${b.bebidas.join(', ')}</em></div>`:''}
     </div>
     <div class="pdf-section"><h4>Incluye</h4><ul style="padding-left:16px;font-size:12.5px;line-height:1.9">
       <li>Baristas especializados</li><li>Equipos profesionales de extracción</li>
@@ -766,23 +1013,36 @@ function addEvItem(){
   evItems.push({id:ins[0].id,nombre:ins[0].nombre,unidad:ins[0].unidad,salida:0,retorno:0});
   renderSalida();
 }
+function actualizarBaseLabel(input,pc,unidad){
+  const sib=input.nextElementSibling;
+  if(!sib)return;
+  sib.textContent=pc>1?(+input.value*pc).toLocaleString()+' '+unidad:'';
+}
 function renderSalida(){
   const el=document.getElementById('ev-salida-list');
   if(!evItems.length){el.innerHTML='<div class="empty" style="padding:20px"><div class="empty-icon">📦</div><div class="empty-text">Añade ítems o selecciona una cotización arriba</div></div>';return;}
-  el.innerHTML=evItems.map((item,i)=>`
-    <div class="ev-item">
+  el.innerHTML=evItems.map((item,i)=>{
+    const inv=S.inventario.find(x=>x.id===item.id)||{stock:0,paqCant:1,paqNom:'und',unidad:'und'};
+    const pc=inv.paqCant||1;const pn=inv.paqNom||'und';
+    const stockPaq=pc>1?Math.floor(inv.stock/pc):inv.stock;
+    const baseLabel=pc>1?` = ${(item.salida||0)*pc} ${inv.unidad}`:'';
+    return `<div class="ev-item">
       <div style="flex:1.5">
         <select style="width:100%;font-size:12px" onchange="cambiarEv(${i},this.value)">
-          ${S.inventario.filter(x=>x.cat==='Insumo').map(inv=>`<option value="${inv.id}" ${inv.id===item.id?'selected':''}>${inv.nombre}</option>`).join('')}
+          ${S.inventario.filter(x=>x.cat==='Insumo').map(x=>`<option value="${x.id}" ${x.id===item.id?'selected':''}>${x.nombre}</option>`).join('')}
         </select>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px">Stock actual: ${(S.inventario.find(x=>x.id===item.id)||{stock:0}).stock.toLocaleString()} ${item.unidad}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">
+          Stock: <strong>${stockPaq} ${pn}${stockPaq!==1?'s':''}</strong>${pc>1?' ('+inv.stock.toLocaleString()+' '+inv.unidad+')':''} ${pc>1?'· 1 '+pn+' = '+pc.toLocaleString()+' '+inv.unidad:''}
+        </div>
       </div>
-      <div style="text-align:center;width:130px">
-        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px">Cantidad que sale</div>
-        <input class="hi" type="number" min="0" step="0.5" value="${item.salida||''}" placeholder="0" oninput="evItems[${i}].salida=+this.value" style="text-align:center;font-size:16px;font-weight:700;padding:6px">
+      <div style="text-align:center;width:155px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px"># ${pn}s que salen</div>
+        <input class="hi" type="number" min="0" step="0.5" value="${item.salida||''}" placeholder="0" oninput="evItems[${i}].salida=+this.value;actualizarBaseLabel(this,${pc},'${inv.unidad}')" style="text-align:center;font-size:16px;font-weight:700;padding:6px;width:100%">
+        <div style="font-size:10px;color:var(--sage);margin-top:2px">${item.salida>0&&pc>1?(item.salida*pc).toLocaleString()+' '+inv.unidad:''}</div>
       </div>
       <button class="btn btn-danger btn-xs" onclick="evItems.splice(${i},1);renderSalida()">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function cambiarEv(i,newId){const inv=S.inventario.find(x=>x.id===newId);if(inv){evItems[i].id=newId;evItems[i].nombre=inv.nombre;evItems[i].unidad=inv.unidad;}renderSalida();}
 function confirmarSalida(){
@@ -794,11 +1054,62 @@ function confirmarSalida(){
 }
 function evTab(tab){
   document.querySelectorAll('.stab').forEach(s=>s.classList.remove('active'));
-  const tabs={salida:0,retorno:1,resultado:2};
-  document.querySelectorAll('.stab')[tabs[tab]].classList.add('active');
-  ['salida','retorno','resultado'].forEach(t=>{document.getElementById('ev-'+t).style.display=t===tab?'block':'none';});
-  if(tab==='retorno')renderRetorno();
+  const tabs={salida:0,equipos:1,retorno:2,resultado:3};
+  if(tabs[tab]!==undefined) document.querySelectorAll('.stab')[tabs[tab]].classList.add('active');
+  ['salida','equipos','retorno','resultado'].forEach(t=>{
+    const el=document.getElementById('ev-'+t);
+    if(el) el.style.display=t===tab?'block':'none';
+  });
+  if(tab==='retorno'){renderRetorno();renderEquiposRetorno();}
   if(tab==='resultado')renderResultado();
+  if(tab==='equipos')renderEquiposSalida();
+}
+
+let evEquipos=[]; // equipos seleccionados para el evento
+
+function renderEquiposSalida(){
+  const el=document.getElementById('ev-equipos-list');
+  const equipo=S.inventario.filter(i=>i.cat==='Maquinaria'||i.cat==='Elementos');
+  if(!equipo.length){el.innerHTML='<div class="empty"><div class="empty-text">No hay equipos registrados en inventario</div></div>';return;}
+  if(!evEquipos.length) evEquipos=equipo.map(e=>({id:e.id,nombre:e.nombre,cat:e.cat,llevado:false,retornado:false}));
+  el.innerHTML=evEquipos.map((eq,i)=>`
+    <div class="ev-item" style="cursor:pointer" onclick="evEquipos[${i}].llevado=!evEquipos[${i}].llevado;renderEquiposSalida()">
+      <div style="width:22px;height:22px;border-radius:50%;background:${eq.llevado?'var(--sage)':'var(--cream3)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:white;font-weight:700;transition:background .15s">${eq.llevado?'✓':''}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${eq.nombre}</div>
+        <div style="font-size:11px;color:var(--muted)">${eq.cat} · Stock: ${(S.inventario.find(x=>x.id===eq.id)||{stock:0}).stock}</div>
+      </div>
+      <span class="tag ${eq.llevado?'tg':'tgray'}">${eq.llevado?'Lleva al evento':'No lleva'}</span>
+    </div>`).join('');
+}
+
+function addEquipoEvento(){
+  const eq=S.inventario.filter(i=>(i.cat==='Maquinaria'||i.cat==='Elementos')&&!evEquipos.find(e=>e.id===i.id));
+  if(!eq.length){toast('Todos los equipos ya están en la lista');return;}
+  evEquipos.push({id:eq[0].id,nombre:eq[0].nombre,cat:eq[0].cat,llevado:true,retornado:false});
+  renderEquiposSalida();
+}
+
+function confirmarEquipos(){
+  toast('✅ Equipos registrados. Ahora ingresa los sobrantes.');
+  evTab('retorno');
+}
+
+function renderEquiposRetorno(){
+  const el=document.getElementById('ev-equipos-retorno-list');
+  const llevados=evEquipos.filter(e=>e.llevado);
+  if(!llevados.length){el.innerHTML='<div style="color:var(--muted2);font-size:13px;padding:8px 0">No se registraron equipos para este evento.</div>';return;}
+  el.innerHTML=llevados.map((eq,i)=>{
+    const idx=evEquipos.indexOf(eq);
+    return `<div class="ev-item" style="cursor:pointer" onclick="evEquipos[${idx}].retornado=!evEquipos[${idx}].retornado;renderEquiposRetorno()">
+      <div style="width:22px;height:22px;border-radius:50%;background:${eq.retornado?'var(--sage)':'var(--red2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:white;font-weight:700">${eq.retornado?'✓':'!'}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${eq.nombre}</div>
+        <div style="font-size:11px;color:var(--muted)">${eq.cat}</div>
+      </div>
+      <span class="tag ${eq.retornado?'tg':'tr'}">${eq.retornado?'Retornó OK':'Pendiente'}</span>
+    </div>`;
+  }).join('');
 }
 function renderRetorno(){
   const el=document.getElementById('ev-retorno-list');
@@ -806,14 +1117,22 @@ function renderRetorno(){
   if(!conSalida.length){el.innerHTML='<div class="empty"><div class="empty-text">No hay ítems con salida mayor a 0.</div></div>';return;}
   el.innerHTML=conSalida.map((item,i)=>{
     const idx=evItems.indexOf(item);
+    const inv=S.inventario.find(x=>x.id===item.id)||{paqCant:1,paqNom:'und',unidad:'und'};
+    const pc=inv.paqCant||1;const pn=inv.paqNom||'und';
     return `<div class="ev-item">
       <div style="flex:1.5">
         <div style="font-weight:600;font-size:13px">${item.nombre}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Salió: <strong>${item.salida}</strong> ${item.unidad} · Consumo actual: <strong id="cns-${idx}">${(item.salida-(item.retorno||0)).toFixed(1)}</strong> ${item.unidad}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">
+          Salió: <strong>${item.salida} ${pn}${item.salida!==1?'s':''}</strong>${pc>1?' ('+((item.salida*pc).toLocaleString())+' '+inv.unidad+')':''}
+          · Consumo: <strong id="cns-${idx}">${(item.salida-(item.retorno||0)).toFixed(1)}</strong> ${pn}s
+        </div>
       </div>
-      <div style="text-align:center;width:130px">
-        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px">Sobrante</div>
-        <input type="number" min="0" step="0.5" max="${item.salida}" value="${item.retorno||''}" placeholder="0" oninput="evItems[${idx}].retorno=+this.value;document.getElementById('cns-${idx}').textContent=(evItems[${idx}].salida-evItems[${idx}].retorno).toFixed(1)" style="text-align:center;font-size:16px;font-weight:700;padding:6px;width:100%">
+      <div style="text-align:center;width:155px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px">Sobrante (${pn}s)</div>
+        <input type="number" min="0" step="0.5" max="${item.salida}" value="${item.retorno||''}" placeholder="0"
+          oninput="evItems[${idx}].retorno=+this.value;document.getElementById('cns-${idx}').textContent=(evItems[${idx}].salida-evItems[${idx}].retorno).toFixed(1)"
+          style="text-align:center;font-size:16px;font-weight:700;padding:6px;width:100%">
+        ${pc>1?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${item.retorno>0?((item.retorno*pc).toLocaleString()+' '+inv.unidad):''}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -864,29 +1183,36 @@ function renderResultado(){
   </div>`;
 }
 function calcRent(){const ev=S.eventos[S.eventos.length-1];if(ev){ev.cobrado=+document.getElementById('ev-cobrado').value||0;renderResultado();}}
-function nuevoEvento(){evItems=[];document.getElementById('ev-cot-sel').value='';document.getElementById('ev-nombre').value='';document.getElementById('ev-fecha').value='';document.getElementById('ev-cobrado').value='';renderSalida();evTab('salida');toast('Listo para nuevo evento');}
+function nuevoEvento(){evItems=[];evEquipos=[];document.getElementById('ev-cot-sel').value='';document.getElementById('ev-nombre').value='';document.getElementById('ev-fecha').value='';document.getElementById('ev-cobrado').value='';renderSalida();evTab('salida');toast('Listo para nuevo evento');}
 
 // ═══════════════════════════ INVENTARIO ═══════════════════════════
 function renderInv(filtro='todos'){
   const items=filtro==='todos'?S.inventario:S.inventario.filter(i=>i.cat===filtro);
-  const alertas=S.inventario.filter(i=>i.stock<=i.minimo);
-  document.getElementById('d-alerts').textContent=alertas.length;
-  document.getElementById('badge-alertas').style.display=alertas.length?'inline':'none';
-  document.getElementById('badge-alertas').textContent=alertas.length;
-  document.getElementById('inv-alertas').innerHTML=alertas.length?`<div class="inv-alert">⚠️ <strong>${alertas.length} ítems por reponer:</strong> ${alertas.map(i=>i.nombre).join(', ')}</div>`:'';
+  // Solo alertas de INSUMOS (no maquinaria ni elementos)
+  const alertasIns=S.inventario.filter(i=>i.cat==='Insumo'&&i.stock<=i.minimo);
+  const alertasEq=S.inventario.filter(i=>i.cat!=='Insumo'&&i.stock<=i.minimo);
+  const totalAlertas=alertasIns.length;
+  document.getElementById('d-alerts').textContent=totalAlertas;
+  document.getElementById('badge-alertas').style.display=totalAlertas?'inline':'none';
+  document.getElementById('badge-alertas').textContent=totalAlertas;
+  let alertHTML='';
+  if(alertasIns.length) alertHTML+=`<div class="inv-alert">⚠️ <strong>Insumos por reponer (${alertasIns.length}):</strong> ${alertasIns.map(i=>i.nombre).join(', ')}</div>`;
+  if(alertasEq.length) alertHTML+=`<div class="inv-alert" style="background:#f0f4ff;border-color:#a0b8f0;color:#1a3a6e">🔧 <strong>Equipos/Elementos por revisar (${alertasEq.length}):</strong> ${alertasEq.map(i=>i.nombre).join(', ')}</div>`;
+  document.getElementById('inv-alertas').innerHTML=alertHTML;
   document.getElementById('tb-inv').innerHTML=items.map(item=>{
     const pct=Math.min(100,Math.round((item.stock/Math.max(item.minimo*3,1))*100));
-    const estado=item.stock<=0?'Agotado':item.stock<=item.minimo?'REPONER':'OK';
-    const tc=estado==='OK'?'tg':estado==='Agotado'?'tr':'tgold';
-    const bc=estado==='OK'?'ok':estado==='Agotado'?'danger':'low';
+    const esInsumo=item.cat==='Insumo';
+    const estadoLabel=item.stock<=0?'Agotado':item.stock<=item.minimo?(esInsumo?'REPONER':'REVISAR'):'OK';
+    const tc=estadoLabel==='OK'?'tg':estadoLabel==='Agotado'?'tr':'tgold';
+    const bc=estadoLabel==='OK'?'ok':estadoLabel==='Agotado'?'danger':'low';
     return `<tr>
       <td><span class="tag tgray" style="font-size:10px">${item.id}</span></td>
       <td><strong>${item.nombre}</strong></td>
       <td><span class="tag tgray">${item.cat}</span></td>
-      <td><div>${item.stock.toLocaleString()} ${item.unidad}</div><div class="pbar"><div class="pfill ${bc}" style="width:${pct}%"></div></div></td>
-      <td>${item.minimo.toLocaleString()}</td><td>${item.unidad}</td>
+      <td><div>${paqInfo(item)}</div><div class="pbar"><div class="pfill ${bc}" style="width:${pct}%"></div></div></td>
+      <td>${paqMin(item)}</td><td>${item.unidad}</td>
       <td style="font-size:12px">${fmt(item.costo)}</td>
-      <td><span class="tag ${tc}">${estado}</span></td>
+      <td><span class="tag ${tc}">${estadoLabel}</span></td>
       <td><div style="display:flex;gap:4px"><button class="btn btn-outline btn-xs" onclick="ajustarStock('${item.id}')">Ajustar</button><button class="btn btn-outline btn-xs" onclick="editIns('${item.id}')">✏️</button></div></td>
     </tr>`;
   }).join('');
@@ -907,6 +1233,18 @@ function regMov(){
 }
 
 // ═══════════════════════════ RECETARIO ═══════════════════════════
+function paqInfo(item){
+  const pn=item.paqNom||'und';const pc=item.paqCant||1;
+  const packs=pc>1?Math.floor(item.stock/pc):item.stock;
+  const resto=pc>1?(item.stock%pc):0;
+  if(pc<=1)return`${item.stock.toLocaleString()} ${item.unidad}`;
+  return`<strong>${packs} ${pn}${packs!==1?'s':''}</strong> <span style="color:var(--muted)">(${item.stock.toLocaleString()} ${item.unidad}${resto>0?' · '+resto+' sueltos':''})</span>`;
+}
+function paqMin(item){
+  const pc=item.paqCant||1;
+  if(pc<=1)return`${item.minimo} ${item.unidad}`;
+  return`${Math.ceil(item.minimo/pc)} ${item.paqNom||'und'} (${item.minimo} ${item.unidad})`;
+}
 function renderRec(filtro=''){
   const items=filtro?S.recetas.filter(r=>r.barra===filtro):S.recetas;
   document.getElementById('tb-rec').innerHTML=items.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td><span class="tag tgold">${r.barra}</span></td><td style="font-size:12px">${r.metodo}</td><td style="font-size:12px">${r.rend}</td><td style="font-size:12px;color:var(--muted)">${r.ingredientes}</td><td><strong>${fmt(r.costo)}</strong></td></tr>`).join('');
@@ -941,11 +1279,11 @@ function renderCfg(){
 }
 
 // CRUD Insumos
-function abrirAddIns(){document.getElementById('ins-title').textContent='Añadir insumo';document.getElementById('ins-eid').value='';document.getElementById('ins-nom').value='';document.getElementById('ins-cat').value='Insumo';document.getElementById('ins-uni').value='unidad';document.getElementById('ins-costo').value='';document.getElementById('ins-stock').value='0';document.getElementById('ins-min').value='0';openM('mo-ins');}
-function editIns(id){const i=S.inventario.find(x=>x.id===id);if(!i)return;document.getElementById('ins-title').textContent='Editar insumo';document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=i.nombre;document.getElementById('ins-cat').value=i.cat;document.getElementById('ins-uni').value=i.unidad;document.getElementById('ins-costo').value=i.costo;document.getElementById('ins-stock').value=i.stock;document.getElementById('ins-min').value=i.minimo;openM('mo-ins');}
+function abrirAddIns(){document.getElementById('ins-title').textContent='Añadir insumo';document.getElementById('ins-eid').value='';document.getElementById('ins-nom').value='';document.getElementById('ins-cat').value='Insumo';document.getElementById('ins-uni').value='unidad';document.getElementById('ins-costo').value='';document.getElementById('ins-paqnom').value='paquete';document.getElementById('ins-paqcant').value='1';document.getElementById('ins-stock').value='0';document.getElementById('ins-min').value='0';openM('mo-ins');}
+function editIns(id){const i=S.inventario.find(x=>x.id===id);if(!i)return;document.getElementById('ins-title').textContent='Editar insumo';document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=i.nombre;document.getElementById('ins-cat').value=i.cat;document.getElementById('ins-uni').value=i.unidad;document.getElementById('ins-costo').value=i.costo;document.getElementById('ins-paqnom').value=i.paqNom||'paquete';document.getElementById('ins-paqcant').value=i.paqCant||1;document.getElementById('ins-stock').value=i.stock;document.getElementById('ins-min').value=i.minimo;openM('mo-ins');}
 function guardarIns(){
   const eid=document.getElementById('ins-eid').value;const nom=document.getElementById('ins-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}
-  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:+document.getElementById('ins-costo').value||0,stock:+document.getElementById('ins-stock').value||0,minimo:+document.getElementById('ins-min').value||0};
+  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:+document.getElementById('ins-costo').value||0,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:+document.getElementById('ins-stock').value||0,minimo:+document.getElementById('ins-min').value||0};
   if(eid){const i=S.inventario.find(x=>x.id===eid);if(i)Object.assign(i,data);}
   else S.inventario.push({id:'INS'+uid(),...data});
   saveS();closeM('mo-ins');renderCfg();renderInv();toast('Insumo guardado');
@@ -981,7 +1319,7 @@ function renderDash(){
   const hoy=new Date().toISOString().split('T')[0];
   const prox=S.cotizaciones.filter(c=>c.fecha>=hoy&&c.estado!=='Cancelado').sort((a,b)=>a.fecha>b.fecha?1:-1)[0];
   document.getElementById('d-prox').textContent=prox?prox.cliente+' — '+prox.fecha:'Sin eventos futuros';
-  const al=S.inventario.filter(i=>i.stock<=i.minimo);
+  const al=S.inventario.filter(i=>i.cat==='Insumo'&&i.stock<=i.minimo);
   document.getElementById('d-alerts').textContent=al.length;
   document.getElementById('badge-alertas').style.display=al.length?'inline':'none';
   document.getElementById('badge-alertas').textContent=al.length;
@@ -989,7 +1327,7 @@ function renderDash(){
   if(!S.cotizaciones.length)rc.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Aún no hay cotizaciones</div></div>';
   else rc.innerHTML=`<table style="width:100%;font-size:13px"><tbody>${S.cotizaciones.slice(0,5).map(c=>`<tr><td style="padding:7px 0;border-bottom:1px solid var(--cream2)"><strong>${c.cliente}</strong><div style="font-size:11px;color:var(--muted)">${c.barraName} · ${c.fecha}</div></td><td style="padding:7px 0;border-bottom:1px solid var(--cream2);text-align:right"><strong>${fmt(c.precioFinal)}</strong><div><span class="tag ${c.estado==='Confirmado'?'tg':c.estado==='Cancelado'?'tr':'tgold'}" style="font-size:10px">${c.estado}</span></div></td></tr>`).join('')}</tbody></table>`;
   const rp=document.getElementById('d-reponer');
-  if(!al.length)rp.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Todo el inventario en orden</div></div>';
+  if(!al.length)rp.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Todos los insumos en orden</div></div>';
   else rp.innerHTML=`<table style="width:100%;font-size:13px"><tbody>${al.slice(0,6).map(i=>`<tr><td style="padding:6px 0;border-bottom:1px solid var(--cream2)">${i.nombre}</td><td style="padding:6px 0;border-bottom:1px solid var(--cream2);text-align:right"><span class="tag tr" style="font-size:10px">${i.stock}/${i.minimo} ${i.unidad}</span></td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -999,16 +1337,23 @@ function exportarInvCSV(){dlCSV([['ID','Ítem','Cat','Unidad','Stock','Mínimo',
 function dlCSV(data,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+data.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href);toast('CSV exportado');}
 
 function resetData(){if(!confirm('⚠️ Borrar TODOS los datos. ¿Continuar?'))return;if(!confirm('Segunda confirmación: ¿segura?'))return;const drv=S.drive;localStorage.removeItem('kc_v4');S={cotizaciones:[],inventario:JSON.parse(JSON.stringify(DEF_INS)),maquinaria:JSON.parse(JSON.stringify(DEF_MAQ)),recetas:JSON.parse(JSON.stringify(DEF_REC)),roles:JSON.parse(JSON.stringify(DEF_ROLES)),movimientos:[],eventos:[],drive:drv};saveS();renderAll();toast('✅ Datos restaurados');}
-function renderAll(){renderDash();renderCots();renderInv();renderRec();renderMovs();renderCfg();}
+function renderAll(){renderDash();renderCots();renderInv();renderRec();renderMovs();renderCfg();window._S=S;window._renderAll=renderAll;}
 
 // ═══════════════════════════ INIT ═══════════════════════════
-loadS();
-renderBarras();
-renderPersonal();
-renderDash();
-document.getElementById('f-fecha').valueAsDate=new Date();
-document.getElementById('ev-fecha').valueAsDate=new Date();
-cargarDrive();
+document.addEventListener('DOMContentLoaded',function(){
+  loadS();
+  // Exponer estado y renderAll al módulo Firebase
+  window._S = S;
+  window._renderAll = renderAll;
+  renderBarras();
+  renderPersonal();
+  renderDash();
+  document.getElementById('f-fecha').valueAsDate=new Date();
+  document.getElementById('ev-fecha').valueAsDate=new Date();
+  // Firebase se inicializa en el módulo ES al inicio del archivo
+  // Attach modal close listeners
+  document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+});
 </script>
 </body>
 </html>
