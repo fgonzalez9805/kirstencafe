@@ -829,9 +829,7 @@ function showPage(id){
   document.getElementById('page-'+id).classList.add('active');
   const map={dashboard:0,cotizacion:1,lista:2,calendario:3,evento:4,inventario:5,recetario:6,movimientos:7,config:8};
   if(map[id]!==undefined)document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
-  if(id==='cotizacion'){barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;renderBarras();renderPersonal();document.getElementById('bebidas-panel').style.display='none';actualizarToggleTrans();
-    setMoneyVal('f-transporte',80000);setMoneyVal('f-imprevistos',30000);setMoneyVal('f-otros',0);
-    calcCot();}
+  if(id==='cotizacion'){barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;renderBarras();renderPersonal();document.getElementById('bebidas-panel').style.display='none';actualizarToggleTrans();calcCot();}
   if(id==='dashboard')renderDash();
   if(id==='lista'){renderCots();fillEvSel();}
   if(id==='calendario'){actualizarEstadosAutomaticos();renderCalendario();}
@@ -944,9 +942,9 @@ function calcCot(){
   const margen=(+document.getElementById('f-margen').value||0)/100;
   const desc=(+document.getElementById('f-descuento').value||0)/100;
   const iva=+document.getElementById('f-iva').value||0;
-  const trans=transIncluidoNew?moneyVal('f-transporte'):0;
-  const imp=moneyVal('f-imprevistos');
-  const otros=moneyVal('f-otros');
+  const trans=transIncluidoNew?(+document.getElementById('f-transporte').value||0):0;
+  const imp=+document.getElementById('f-imprevistos').value||0;
+  const otros=+document.getElementById('f-otros').value||0;
   const cliente=document.getElementById('f-cliente').value||'—';
 
   // Costo insumos: 1 bebida por persona, usar costo promedio de bebidas seleccionadas
@@ -1160,9 +1158,9 @@ function editCot(id){
   document.getElementById('ec-per').value=c.personas;
   document.getElementById('ec-horas').value=c.horas||4;
   document.getElementById('ec-dias').value=c.dias||1;
-  setMoneyVal('ec-trans',c.trans||80000);
-  setMoneyVal('ec-imp',c.imp||30000);
-  setMoneyVal('ec-otros',c.otros||0);
+  document.getElementById('ec-trans').value=c.trans||80000;
+  document.getElementById('ec-imp').value=c.imp||30000;
+  document.getElementById('ec-otros').value=c.otros||0;
   document.getElementById('ec-margen').value=Math.round((c.margen||0.35)*100);
   document.getElementById('ec-desc').value=Math.round((c.desc||0)*100);
   document.getElementById('ec-iva').value=c.iva||0;
@@ -1221,9 +1219,9 @@ function calcEditCot(){
   const margen=(+document.getElementById('ec-margen').value||0)/100;
   const desc=(+document.getElementById('ec-desc').value||0)/100;
   const iva=+document.getElementById('ec-iva').value||0;
-  const trans=transIncluidoEdit?moneyVal('ec-trans'):0;
-  const imp=moneyVal('ec-imp');
-  const otros=moneyVal('ec-otros');
+  const trans=transIncluidoEdit?(+document.getElementById('ec-trans').value||0):0;
+  const imp=+document.getElementById('ec-imp').value||0;
+  const otros=+document.getElementById('ec-otros').value||0;
   let costoInsBruto=0;
   if(bebidasEdit.length>0){const cp=bebidasEdit.reduce((a,b)=>a+b.costo,0)/bebidasEdit.length;costoInsBruto=cp*personas*dias;}
   const merma=costoInsBruto*0.10;
@@ -1634,7 +1632,7 @@ function updateMovInfo(){
 }
 function regMov(){
   const id=document.getElementById('mov-item').value;const tipo=document.getElementById('mov-tipo').value;
-  const cant=parseFloat(document.getElementById('mov-cant').value.replace(/\./g,'').replace(/[^\d.]/g,''))||0;
+  const cant=parseFloat(document.getElementById('mov-cant').value)||0;
   const motivo=document.getElementById('mov-motivo').value;const notas=document.getElementById('mov-notas').value;
   if(!cant){toast('Ingresa una cantidad');return;}
   const item=S.inventario.find(i=>i.id===id);if(!item)return;
@@ -1777,13 +1775,13 @@ function editIns(id){
   document.getElementById('ins-title').textContent='Editar: '+item.nombre;
   document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=item.nombre;
   document.getElementById('ins-cat').value=item.cat;document.getElementById('ins-uni').value=item.unidad;
-  setMoneyVal('ins-costo',item.costo);document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
+  document.getElementById('ins-costo').value=item.costo;document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
   document.getElementById('ins-paqcant').value=item.paqCant||1;document.getElementById('ins-stock').value=item.stock||0;
   document.getElementById('ins-min').value=item.minimo||0;calcInsPreview();openM('mo-ins');
 }
 function guardarIns(){
   const eid=document.getElementById('ins-eid').value;const nom=document.getElementById('ins-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}
-  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:moneyVal('ins-costo')||+document.getElementById('ins-costo').value.replace(/\./g,'')||0,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
+  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:+document.getElementById('ins-costo').value||0,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
   if(eid){const i=S.inventario.find(x=>x.id===eid);if(i)Object.assign(i,data);}
   else S.inventario.push({id:'INS'+uid(),...data});
   recalcularCostosRecetas();saveS();closeM('mo-ins');renderCfg();renderInv();toast('Insumo guardado');
@@ -1791,16 +1789,16 @@ function guardarIns(){
 function elimIns(id){if(!confirm('¿Eliminar?'))return;S.inventario=S.inventario.filter(i=>i.id!==id);saveS();renderCfg();renderInv();toast('Eliminado');}
 
 // CRUD Maquinaria
-function calcDep(){const v=moneyVal('maq-val');const d=+document.getElementById('maq-vida').value||1;document.getElementById('maq-dep').value=fmt(v/d)+'/evento';}
+function calcDep(){const v=+document.getElementById('maq-val').value||0;const d=+document.getElementById('maq-vida').value||1;document.getElementById('maq-dep').value=fmt(v/d)+'/evento';}
 function abrirAddMaq(){document.getElementById('maq-eid').value='';document.getElementById('maq-nom').value='';document.getElementById('maq-val').value='';document.getElementById('maq-vida').value='400';document.getElementById('maq-dep').value='';openM('mo-maq');}
-function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;setMoneyVal('maq-val',m.valor);document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/evento';openM('mo-maq');}
-function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=moneyVal('maq-val');const vida=+document.getElementById('maq-vida').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
+function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;document.getElementById('maq-val').value=m.valor;document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/evento';openM('mo-maq');}
+function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=+document.getElementById('maq-val').value||0;const vida=+document.getElementById('maq-vida').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
 function elimMaq(id){if(!confirm('¿Eliminar?'))return;S.maquinaria=S.maquinaria.filter(m=>m.id!==id);saveS();renderCfg();toast('Eliminado');}
 
 // CRUD Roles
 function abrirAddRol(){document.getElementById('rol-eid').value='';document.getElementById('rol-nom').value='';document.getElementById('rol-tar').value='';openM('mo-rol');}
-function editRol(id){const r=S.roles.find(x=>x.id===id);if(!r)return;document.getElementById('rol-eid').value=id;document.getElementById('rol-nom').value=r.nombre;setMoneyVal('rol-tar',r.tarifa);openM('mo-rol');}
-function guardarRol(){const eid=document.getElementById('rol-eid').value;const nom=document.getElementById('rol-nom').value.trim();const tar=moneyVal('rol-tar');if(!nom){toast('Ingresa el nombre');return;}if(eid){const r=S.roles.find(x=>x.id===eid);if(r){r.nombre=nom;r.tarifa=tar;}}else S.roles.push({id:'ROL'+uid(),nombre:nom,tarifa:tar});saveS();closeM('mo-rol');renderCfg();toast('Rol guardado');}
+function editRol(id){const r=S.roles.find(x=>x.id===id);if(!r)return;document.getElementById('rol-eid').value=id;document.getElementById('rol-nom').value=r.nombre;document.getElementById('rol-tar').value=r.tarifa;openM('mo-rol');}
+function guardarRol(){const eid=document.getElementById('rol-eid').value;const nom=document.getElementById('rol-nom').value.trim();const tar=+document.getElementById('rol-tar').value||0;if(!nom){toast('Ingresa el nombre');return;}if(eid){const r=S.roles.find(x=>x.id===eid);if(r){r.nombre=nom;r.tarifa=tar;}}else S.roles.push({id:'ROL'+uid(),nombre:nom,tarifa:tar});saveS();closeM('mo-rol');renderCfg();toast('Rol guardado');}
 function elimRol(id){if(!confirm('¿Eliminar?'))return;S.roles=S.roles.filter(r=>r.id!==id);saveS();renderCfg();toast('Eliminado');}
 
 // ═══════════════════ CONFIG ═══════════════════
@@ -1879,60 +1877,7 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('ins-paqnom').addEventListener('input',calcInsPreview);
   // Verificar estados automáticos del calendario cada minuto
   setInterval(actualizarEstadosAutomaticos,60000);
-  // ── Separador de miles en inputs de dinero ──
-  setupMoneyInputs();
 });
-
-// Inputs de dinero — formateo con separador de miles al escribir
-// Usamos type="text" virtualmente: guardamos el valor numérico real
-// pero mostramos con puntos. Los inputs que aplican tienen data-money.
-function setupMoneyInputs(){
-  // IDs de todos los inputs de dinero en la app
-  const moneyIds=[
-    'f-transporte','f-imprevistos','f-otros',
-    'ec-trans','ec-imp','ec-otros',
-    'ins-costo','maq-val','rol-tar',
-    'rec-costo','beb-custom-costo',
-    'ev-cobrado','ec-precio',
-    'mov-cant'
-  ];
-  moneyIds.forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el)return;
-    // Cambiar a type text para poder mostrar puntos
-    el.setAttribute('type','text');
-    el.setAttribute('inputmode','numeric');
-    el.addEventListener('input',function(){
-      const pos=this.selectionStart;
-      const raw=this.value.replace(/\./g,'').replace(/[^\d]/g,'');
-      if(raw===''){this.value='';return;}
-      const num=parseInt(raw,10);
-      const formatted=num.toLocaleString('es-CO');
-      this.value=formatted;
-      // Mantener cursor al final es más simple y claro
-    });
-    el.addEventListener('blur',function(){
-      const raw=this.value.replace(/\./g,'').replace(/[^\d]/g,'');
-      if(raw){this.value=parseInt(raw,10).toLocaleString('es-CO');}
-    });
-    el.addEventListener('focus',function(){this.select();});
-  });
-}
-
-// Helper para leer valor numérico real de un input de dinero
-function moneyVal(id){
-  const el=document.getElementById(id);
-  if(!el)return 0;
-  const raw=el.value.replace(/\./g,'').replace(/,/g,'').replace(/[^\d]/g,'');
-  return raw?parseInt(raw,10):0;
-}
-
-// Helper para escribir valor formateado en un input de dinero
-function setMoneyVal(id,num){
-  const el=document.getElementById(id);
-  if(!el)return;
-  el.value=num?Math.round(num).toLocaleString('es-CO'):'';
-}
 </script>
 </body>
 </html>
