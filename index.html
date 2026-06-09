@@ -8,6 +8,8 @@
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+  import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
   const firebaseConfig = {
     apiKey: "AIzaSyAyg4VnPlCVfzXGP8onjw-l8lfxL-bcIfA",
     authDomain: "kirsten-cafe.firebaseapp.com",
@@ -16,9 +18,14 @@
     messagingSenderId: "651141393465",
     appId: "1:651141393465:web:4cb301f942093b6f5c31e8"
   };
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
   const docRef = doc(db, 'kirstencafe', 'data');
+  let dbListener = null;
+
+  // Guardar en Firestore
   window._fbSave = async (data) => {
     try {
       await setDoc(docRef, data);
@@ -28,24 +35,75 @@
       console.error('Firebase save error:', e);
     }
   };
-  window._setSS && window._setSS('syncing','Conectando a Firebase...');
-  onSnapshot(docRef, (snapshot) => {
-    if(snapshot.exists()){
-      const remote = snapshot.data();
-      if(window._S){ window._S = {...window._S, ...remote}; S = window._S; }
-      localStorage.setItem('kc_v4', JSON.stringify(window._S||{}));
-      window._setSS && window._setSS('ok','Firebase · '+new Date().toLocaleTimeString('es-CO'));
-      const fbDot=document.getElementById('fb-dot');
-      const fbTxt=document.getElementById('fb-status-text');
-      if(fbDot) fbDot.className='sync-dot ok';
-      if(fbTxt) fbTxt.textContent='Conectado — sincronización en tiempo real activa';
-      if(window._renderAll) window._renderAll();
-    } else {
-      if(window._S && window._fbSave) window._fbSave(window._S);
+
+  // Login con Google
+  window._loginGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      console.error('Login error:', e);
+      const errEl = document.getElementById('login-error');
+      if(errEl) errEl.textContent = 'Error al iniciar sesión: ' + e.message;
     }
-  }, (err) => {
-    window._setSS && window._setSS('err','Error Firebase: '+err.code);
-    console.error('Firestore error:', err);
+  };
+
+  // Login con email/contraseña
+  window._loginEmail = async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch(e) {
+      const errEl = document.getElementById('login-error');
+      if(errEl){
+        if(e.code==='auth/wrong-password'||e.code==='auth/user-not-found'||e.code==='auth/invalid-credential')
+          errEl.textContent = 'Email o contraseña incorrectos';
+        else errEl.textContent = 'Error: ' + e.message;
+      }
+    }
+  };
+
+  // Cerrar sesión
+  window._logout = async () => {
+    if(dbListener){ dbListener(); dbListener=null; }
+    await signOut(auth);
+  };
+
+  // Escuchar cambios de autenticación
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      // Usuario autenticado — mostrar app
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app-screen').style.display='block';
+      // Mostrar nombre en sync bar
+      const userEl = document.getElementById('user-name');
+      if(userEl) userEl.textContent = user.displayName || user.email;
+      window._setSS && window._setSS('syncing','Conectando a Firebase...');
+      // Escuchar datos en tiempo real
+      if(dbListener) dbListener();
+      dbListener = onSnapshot(docRef, (snapshot) => {
+        if(snapshot.exists()){
+          const remote = snapshot.data();
+          if(window._S){ window._S = {...window._S, ...remote}; S = window._S; }
+          localStorage.setItem('kc_v4', JSON.stringify(window._S||{}));
+          window._setSS && window._setSS('ok','Firebase · '+new Date().toLocaleTimeString('es-CO'));
+          const fbDot=document.getElementById('fb-dot');
+          const fbTxt=document.getElementById('fb-status-text');
+          if(fbDot) fbDot.className='sync-dot ok';
+          if(fbTxt) fbTxt.textContent='Conectado — sincronización en tiempo real activa';
+          if(window._renderAll) window._renderAll();
+        } else {
+          if(window._S && window._fbSave) window._fbSave(window._S);
+        }
+      }, (err) => {
+        window._setSS && window._setSS('err','Error: '+err.code);
+        console.error('Firestore error:', err);
+      });
+    } else {
+      // No autenticado — mostrar pantalla de login
+      if(dbListener){ dbListener(); dbListener=null; }
+      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('app-screen').style.display='none';
+    }
   });
 </script>
 <script>
@@ -170,6 +228,16 @@ tr:hover td{background:var(--cream)}
 .empty{text-align:center;padding:30px 20px;color:var(--muted2)}
 .empty-icon{font-size:34px;margin-bottom:10px;opacity:.5}
 input.hi{background:#fffbe6;border-color:var(--gold)}
+/* Login screen */
+#login-screen{display:flex;position:fixed;inset:0;background:linear-gradient(135deg,var(--espresso) 0%,#2a0f00 60%,#1a0500 100%);z-index:9999;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--white);border-radius:20px;padding:40px 36px;width:400px;max-width:100%;box-shadow:0 32px 80px rgba(0,0,0,.4);text-align:center}
+.login-logo{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--coffee);margin-bottom:4px}
+.login-logo span{color:var(--gold)}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.login-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--cream3)}
+.login-error{color:var(--red);font-size:12.5px;margin-top:10px;min-height:18px}
+#app-screen{display:none}
 /* Calendario */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
 .cal-day{min-height:80px;background:var(--white);border:1px solid var(--cream3);border-radius:8px;padding:6px;font-size:11px;cursor:pointer;transition:background .15s;position:relative}
@@ -195,7 +263,44 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 </style>
 </head>
 <body>
-<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Conectando...</span><button class="btn btn-outline btn-xs no-print" onclick="sincronizarManual()" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)">🔄 Sync</button></div>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Kirsten <span>Café</span></div>
+    <div class="login-sub">Sistema de gestión de eventos</div>
+
+    <!-- Login con Google -->
+    <button onclick="window._loginGoogle()" style="width:100%;padding:11px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;color:#333;transition:background .15s;margin-bottom:4px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Entrar con Google
+    </button>
+
+    <div class="login-divider">o</div>
+
+    <!-- Login con email/contraseña -->
+    <div style="text-align:left;margin-bottom:10px">
+      <div style="margin-bottom:8px">
+        <label style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email</label>
+        <input id="login-email" type="email" placeholder="tu@email.com" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" onfocus="this.style.borderColor='#C9973A'" onblur="this.style.borderColor='#e0e0e0'">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Contraseña</label>
+        <input id="login-pass" type="password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" onfocus="this.style.borderColor='#C9973A'" onblur="this.style.borderColor='#e0e0e0'" onkeydown="if(event.key==='Enter')loginEmail()">
+      </div>
+      <button onclick="loginEmail()" style="width:100%;padding:10px;background:#3D1C02;color:#F2EBE0;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer" onmouseover="this.style.background='#1A0A00'" onmouseout="this.style.background='#3D1C02'">
+        Iniciar sesión
+      </button>
+    </div>
+
+    <div class="login-error" id="login-error"></div>
+    <div style="font-size:11px;color:#aaa;margin-top:16px">Acceso restringido — solo usuarios autorizados</div>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app-screen">
+<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Conectando...</span><span id="user-name" style="margin-left:8px;opacity:.6;font-size:11px"></span><button class="btn btn-outline btn-xs no-print" onclick="cerrarSesion()" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)">Cerrar sesión</button></div>
 <nav>
   <div class="nav-brand">Kirsten <span>Café</span></div>
   <div class="nav-tabs">
@@ -2065,6 +2170,23 @@ function setMoneyVal(id,num){
   if(!el)return;
   el.value=num?Math.round(num).toLocaleString('es-CO'):'';
 }
+
+// ─── Auth helpers ───
+function loginEmail(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-error');
+  if(!email||!pass){if(errEl)errEl.textContent='Ingresa email y contraseña';return;}
+  if(errEl)errEl.textContent='';
+  if(window._loginEmail) window._loginEmail(email,pass);
+  else if(errEl) errEl.textContent='Error: autenticación no disponible';
+}
+function cerrarSesion(){
+  if(confirm('¿Cerrar sesión?')){
+    if(window._logout) window._logout();
+  }
+}
 </script>
+</div><!-- end app-screen -->
 </body>
 </html>
