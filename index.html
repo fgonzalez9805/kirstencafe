@@ -507,6 +507,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     </div>
     <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importarBackup(this)">
   </div>
+  <div class="card"><div class="card-title">☕ Tipos de Barra <span style="font-size:11px;color:var(--muted);font-weight:400">(bebidas que aparecen preseleccionadas)</span></div><div class="tw"><table><thead><tr><th>Icono</th><th>Nombre</th><th>Descripción</th><th>Bebidas incluidas</th><th></th></tr></thead><tbody id="cfg-barras"></tbody></table></div></div>
   <div class="card"><div class="card-title">📦 Insumos <button class="btn btn-outline btn-sm no-print" onclick="abrirAddIns()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>ID</th><th>Nombre</th><th>Cat.</th><th>Paquete</th><th>U.base/paq</th><th>Stock (paq)</th><th>Mín (paq)</th><th>Costo/u base</th><th></th></tr></thead><tbody id="cfg-ins"></tbody></table></div></div>
   <div class="card"><div class="card-title">🔧 Maquinaria <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div><div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Vida útil en días de uso efectivo (80 días/año × años). Ej: 5 años = 400 días.</div><div class="tw"><table><thead><tr><th>Equipo</th><th>Valor compra</th><th>Días uso total</th><th>Dep/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div></div>
   <div class="card"><div class="card-title">📖 Recetas <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRec()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Vaso</th><th>Ingredientes</th><th>Costo</th><th></th></tr></thead><tbody id="cfg-rec"></tbody></table></div></div>
@@ -636,6 +637,20 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
   <div class="btn-group no-print"><button class="btn btn-outline" onclick="editRecFromVer()">✏️ Editar receta</button><button class="btn btn-outline" onclick="closeM('mo-rec-ver')">Cerrar</button></div>
 </div></div>
 
+<!-- EDITAR BARRA -->
+<div class="mo" id="mo-edit-barra"><div class="modal modal-wide">
+  <button class="mc" onclick="closeM('mo-edit-barra')">✕</button>
+  <div class="modal-title" id="edit-barra-title">Editar barra</div>
+  <input type="hidden" id="edit-barra-id">
+  <div class="fr">
+    <div class="fg"><label>Descripción corta</label><input id="edit-barra-desc" type="text"></div>
+  </div>
+  <div style="font-size:12px;font-weight:600;color:var(--coffee);margin-bottom:8px">Bebidas que aparecen preseleccionadas al elegir esta barra:</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Marca las bebidas del recetario que pertenecen a esta barra. Al seleccionarla en una cotización, estas quedarán marcadas por defecto (puedes cambiarlas por evento).</div>
+  <div id="edit-barra-bebidas" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;max-height:350px;overflow-y:auto;margin-bottom:12px"></div>
+  <div class="btn-group"><button class="btn btn-primary" onclick="guardarEditBarra()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-edit-barra')">Cancelar</button></div>
+</div></div>
+
 <div class="toast" id="toast"></div>
 <script>
 // ═══════════════════ DEFAULTS ═══════════════════
@@ -713,7 +728,7 @@ const DEF_ROLES=[
 ];
 
 // ═══════════════════ STATE ═══════════════════
-let S={cotizaciones:[],inventario:[],maquinaria:[],recetas:[],roles:[],movimientos:[],eventos:[]};
+let S={cotizaciones:[],inventario:[],maquinaria:[],recetas:[],roles:[],movimientos:[],eventos:[],barras:[]};
 let personal_cot=[];
 let barraActiva=null;
 let cotVerID=null;
@@ -768,6 +783,7 @@ function loadS(){
     if(!S.cotizaciones)S.cotizaciones=[];
     if(!S.movimientos)S.movimientos=[];
     if(!S.eventos)S.eventos=[];
+    if(!S.barras||!S.barras.length) S.barras=JSON.parse(JSON.stringify(DEF_BARRAS));
     // Calcular costos de recetas desde ingredientes
     recalcularCostosRecetas();
     window._S=S;
@@ -829,7 +845,9 @@ function showPage(id){
   document.getElementById('page-'+id).classList.add('active');
   const map={dashboard:0,cotizacion:1,lista:2,calendario:3,evento:4,inventario:5,recetario:6,movimientos:7,config:8};
   if(map[id]!==undefined)document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
-  if(id==='cotizacion'){barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;renderBarras();renderPersonal();document.getElementById('bebidas-panel').style.display='none';actualizarToggleTrans();calcCot();}
+  if(id==='cotizacion'){barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;renderBarras();renderPersonal();document.getElementById('bebidas-panel').style.display='none';actualizarToggleTrans();
+    setMoneyVal('f-transporte',80000);setMoneyVal('f-imprevistos',30000);setMoneyVal('f-otros',0);
+    calcCot();}
   if(id==='dashboard')renderDash();
   if(id==='lista'){renderCots();fillEvSel();}
   if(id==='calendario'){actualizarEstadosAutomaticos();renderCalendario();}
@@ -842,15 +860,25 @@ function showPage(id){
 
 // ═══════════════════ BARRAS + BEBIDAS ═══════════════════
 function renderBarras(){
-  document.getElementById('barra-sel').innerHTML=DEF_BARRAS.map(b=>`<div class="bcard ${barraActiva===b.id?'sel':''}" onclick="selBarra('${b.id}')"><div class="ck">✓</div><div class="bi">${b.icon}</div><div class="bn">${b.name}</div><div class="bd">${b.desc}</div></div>`).join('');
+  const barras=S.barras&&S.barras.length?S.barras:DEF_BARRAS;
+  document.getElementById('barra-sel').innerHTML=barras.map(b=>`<div class="bcard ${barraActiva===b.id?'sel':''}" onclick="selBarra('${b.id}')"><div class="ck">✓</div><div class="bi">${b.icon}</div><div class="bn">${b.name}</div><div class="bd">${b.desc}</div></div>`).join('');
 }
 function selBarra(id){
   barraActiva=id;
   renderBarras();
-  const mapaBarras={colombiana:'Colombiana',italiana:'Italiana',filtrados:'Filtrados',carajillos:'Carajillos',premium:'',tes:'Infusiones',blanca:'',impresora:'',personalizada:''};
-  const cat=mapaBarras[id];
+  const barras=S.barras&&S.barras.length?S.barras:DEF_BARRAS;
+  const barra=barras.find(b=>b.id===id);
   if(id==='personalizada'){bebidasSeleccionadas=[];}
-  else{
+  else if(barra&&barra.bebidasIds&&barra.bebidasIds.length){
+    // Usar bebidasIds guardadas en S.barras
+    bebidasSeleccionadas=barra.bebidasIds.map(rid=>{
+      const r=S.recetas.find(x=>x.id===rid);
+      return r?{id:r.id,nombre:r.nombre,costo:r.costo,custom:false}:null;
+    }).filter(Boolean);
+  } else {
+    // Fallback: usar barra tradicional por categoría
+    const mapaBarras={colombiana:'Colombiana',italiana:'Italiana',filtrados:'Filtrados',carajillos:'Carajillos',premium:'',tes:'Infusiones',blanca:'',impresora:''};
+    const cat=mapaBarras[id]||'';
     const recs=cat?S.recetas.filter(r=>r.barra===cat):S.recetas;
     bebidasSeleccionadas=recs.map(r=>({id:r.id,nombre:r.nombre,costo:r.costo,custom:false}));
   }
@@ -942,9 +970,9 @@ function calcCot(){
   const margen=(+document.getElementById('f-margen').value||0)/100;
   const desc=(+document.getElementById('f-descuento').value||0)/100;
   const iva=+document.getElementById('f-iva').value||0;
-  const trans=transIncluidoNew?(+document.getElementById('f-transporte').value||0):0;
-  const imp=+document.getElementById('f-imprevistos').value||0;
-  const otros=+document.getElementById('f-otros').value||0;
+  const trans=transIncluidoNew?moneyVal('f-transporte'):0;
+  const imp=moneyVal('f-imprevistos');
+  const otros=moneyVal('f-otros');
   const cliente=document.getElementById('f-cliente').value||'—';
 
   // Costo insumos: 1 bebida por persona, usar costo promedio de bebidas seleccionadas
@@ -1158,9 +1186,9 @@ function editCot(id){
   document.getElementById('ec-per').value=c.personas;
   document.getElementById('ec-horas').value=c.horas||4;
   document.getElementById('ec-dias').value=c.dias||1;
-  document.getElementById('ec-trans').value=c.trans||80000;
-  document.getElementById('ec-imp').value=c.imp||30000;
-  document.getElementById('ec-otros').value=c.otros||0;
+  setMoneyVal('ec-trans',c.trans||80000);
+  setMoneyVal('ec-imp',c.imp||30000);
+  setMoneyVal('ec-otros',c.otros||0);
   document.getElementById('ec-margen').value=Math.round((c.margen||0.35)*100);
   document.getElementById('ec-desc').value=Math.round((c.desc||0)*100);
   document.getElementById('ec-iva').value=c.iva||0;
@@ -1219,9 +1247,9 @@ function calcEditCot(){
   const margen=(+document.getElementById('ec-margen').value||0)/100;
   const desc=(+document.getElementById('ec-desc').value||0)/100;
   const iva=+document.getElementById('ec-iva').value||0;
-  const trans=transIncluidoEdit?(+document.getElementById('ec-trans').value||0):0;
-  const imp=+document.getElementById('ec-imp').value||0;
-  const otros=+document.getElementById('ec-otros').value||0;
+  const trans=transIncluidoEdit?moneyVal('ec-trans'):0;
+  const imp=moneyVal('ec-imp');
+  const otros=moneyVal('ec-otros');
   let costoInsBruto=0;
   if(bebidasEdit.length>0){const cp=bebidasEdit.reduce((a,b)=>a+b.costo,0)/bebidasEdit.length;costoInsBruto=cp*personas*dias;}
   const merma=costoInsBruto*0.10;
@@ -1307,12 +1335,35 @@ function actualizarEstadosAutomaticos(){
   let changed=false;
   S.cotizaciones.forEach(c=>{
     if(!c.fecha) return;
+    const dias=Math.max(1,c.dias||1);
+    const fechaFin=calcFechaFin(c.fecha,dias);
+    // Pasa a En proceso cuando llega la fecha de inicio
     if(c.estado==='Confirmado'&&c.fecha<=hoy){c.estado='En proceso';changed=true;}
-    const fechaFin=c.fecha;// simplificado: un día
-    if(c.estado==='En proceso'&&c.fecha<hoy){c.estado='Completado';changed=true;}
+    // Pasa a Completado cuando termina el último día
+    if(c.estado==='En proceso'&&fechaFin<hoy){c.estado='Completado';changed=true;}
   });
   if(changed){saveS();renderCots();}
 }
+
+// Calcula fecha de fin dado fecha de inicio y número de días
+function calcFechaFin(fechaInicio,dias){
+  const d=new Date(fechaInicio+'T12:00:00');
+  d.setDate(d.getDate()+(dias-1));
+  return d.toISOString().split('T')[0];
+}
+
+// Genera array de fechas para un evento multi-día
+function fechasEvento(c){
+  const dias=Math.max(1,c.dias||1);
+  const fechas=[];
+  for(let i=0;i<dias;i++){
+    const d=new Date(c.fecha+'T12:00:00');
+    d.setDate(d.getDate()+i);
+    fechas.push(d.toISOString().split('T')[0]);
+  }
+  return fechas;
+}
+
 function renderCalendario(){
   const titulo=document.getElementById('cal-titulo');
   const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1323,6 +1374,16 @@ function renderCalendario(){
   const diasMes=new Date(calYear,calMonth+1,0).getDate();
   const diasAntes=primerDia;
   const diasMesAnterior=new Date(calYear,calMonth,0).getDate();
+
+  // Pre-calcular qué fechas tiene cada evento (incluye multi-día)
+  const eventosPorFecha={};
+  S.cotizaciones.filter(c=>c.fecha&&['Confirmado','En proceso','Completado'].includes(c.estado)).forEach(c=>{
+    fechasEvento(c).forEach((fecha,idx)=>{
+      if(!eventosPorFecha[fecha]) eventosPorFecha[fecha]=[];
+      eventosPorFecha[fecha].push({cot:c,diaNum:idx+1,totalDias:c.dias||1});
+    });
+  });
+
   let html='';
   // Días del mes anterior
   for(let i=diasAntes-1;i>=0;i--){
@@ -1332,8 +1393,12 @@ function renderCalendario(){
   for(let d=1;d<=diasMes;d++){
     const fecha=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const esHoy=hoy.getFullYear()===calYear&&hoy.getMonth()===calMonth&&hoy.getDate()===d;
-    const eventos=S.cotizaciones.filter(c=>c.fecha===fecha&&['Confirmado','En proceso','Completado'].includes(c.estado));
-    let evHtml=eventos.map(c=>`<div class="cal-event ${c.estado==='Confirmado'?'confirmado':c.estado==='En proceso'?'en-proceso':'completado'}" onclick="verCot('${c.id}')" title="${c.cliente}">${c.cliente.split(' ')[0]}</div>`).join('');
+    const eventos=eventosPorFecha[fecha]||[];
+    let evHtml=eventos.map(({cot:c,diaNum,totalDias})=>{
+      const clase=c.estado==='Confirmado'?'confirmado':c.estado==='En proceso'?'en-proceso':'completado';
+      const label=totalDias>1?`${c.cliente.split(' ')[0]} (${diaNum}/${totalDias})`:c.cliente.split(' ')[0];
+      return `<div class="cal-event ${clase}" onclick="verCot('${c.id}')" title="${c.cliente} — Día ${diaNum} de ${totalDias}">${label}</div>`;
+    }).join('');
     html+=`<div class="cal-day ${esHoy?'today':''}"><div class="cal-day-num">${d}</div>${evHtml}</div>`;
   }
   // Días del mes siguiente
@@ -1343,7 +1408,6 @@ function renderCalendario(){
     html+=`<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
   }
   grid.innerHTML=html;
-  // Recordatorios
   renderRecordatorios();
 }
 function renderRecordatorios(){
@@ -1351,16 +1415,30 @@ function renderRecordatorios(){
   const en7=new Date(hoy);en7.setDate(hoy.getDate()+7);
   const hoyStr=hoy.toISOString().split('T')[0];
   const en7Str=en7.toISOString().split('T')[0];
-  const proximos=S.cotizaciones.filter(c=>c.fecha&&c.fecha>=hoyStr&&c.fecha<=en7Str&&['Confirmado','En proceso'].includes(c.estado)).sort((a,b)=>a.fecha>b.fecha?1:-1);
+  const proximos=S.cotizaciones.filter(c=>{
+    if(!c.fecha||!['Confirmado','En proceso'].includes(c.estado))return false;
+    const fechaFin=calcFechaFin(c.fecha,c.dias||1);
+    return c.fecha<=en7Str&&fechaFin>=hoyStr;
+  }).sort((a,b)=>a.fecha>b.fecha?1:-1);
   const el=document.getElementById('cal-recordatorios');
   if(!proximos.length){el.innerHTML='';return;}
   el.innerHTML=`<div class="card" style="margin-top:14px">
     <div class="card-title">🔔 Recordatorios — próximos 7 días</div>
     ${proximos.map(c=>{
-      const dias=Math.round((new Date(c.fecha)-hoy)/(1000*60*60*24));
+      const dias=Math.max(1,c.dias||1);
+      const fechaFin=calcFechaFin(c.fecha,dias);
+      const diffInicio=Math.round((new Date(c.fecha+'T12:00:00')-hoy)/(1000*60*60*24));
+      const enCurso=c.fecha<=hoyStr&&fechaFin>=hoyStr;
+      const etiqueta=enCurso?'HOY/En curso':diffInicio===0?'HOY':diffInicio===1?'Mañana':'En '+diffInicio+' días';
+      const tagCls=enCurso||diffInicio===0?'tr':diffInicio<=2?'tgold':'tg';
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cream2);font-size:13px">
-        <div><strong>${c.cliente}</strong><div style="font-size:11.5px;color:var(--muted)">${c.barraName} · ${fmtNum(c.personas)} personas</div></div>
-        <div style="text-align:right"><span class="tag ${dias===0?'tr':dias<=2?'tgold':'tg'}">${dias===0?'HOY':dias===1?'Mañana':'En '+dias+' días'}</span><div style="font-size:11px;color:var(--muted);margin-top:3px">${c.fecha}</div></div>
+        <div><strong>${c.cliente}</strong>
+          <div style="font-size:11.5px;color:var(--muted)">${c.barraName} · ${fmtNum(c.personas)} personas${dias>1?' · '+dias+' días':''}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="tag ${tagCls}">${etiqueta}</span>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">${c.fecha}${dias>1?' → '+fechaFin:''}</div>
+        </div>
       </div>`;
     }).join('')}
   </div>`;
@@ -1632,7 +1710,7 @@ function updateMovInfo(){
 }
 function regMov(){
   const id=document.getElementById('mov-item').value;const tipo=document.getElementById('mov-tipo').value;
-  const cant=parseFloat(document.getElementById('mov-cant').value)||0;
+  const cant=parseFloat(document.getElementById('mov-cant').value.replace(/\./g,'').replace(/[^\d.]/g,''))||0;
   const motivo=document.getElementById('mov-motivo').value;const notas=document.getElementById('mov-notas').value;
   if(!cant){toast('Ingresa una cantidad');return;}
   const item=S.inventario.find(i=>i.id===id);if(!item)return;
@@ -1775,13 +1853,13 @@ function editIns(id){
   document.getElementById('ins-title').textContent='Editar: '+item.nombre;
   document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=item.nombre;
   document.getElementById('ins-cat').value=item.cat;document.getElementById('ins-uni').value=item.unidad;
-  document.getElementById('ins-costo').value=item.costo;document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
+  setMoneyVal('ins-costo',item.costo);document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
   document.getElementById('ins-paqcant').value=item.paqCant||1;document.getElementById('ins-stock').value=item.stock||0;
   document.getElementById('ins-min').value=item.minimo||0;calcInsPreview();openM('mo-ins');
 }
 function guardarIns(){
   const eid=document.getElementById('ins-eid').value;const nom=document.getElementById('ins-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}
-  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:+document.getElementById('ins-costo').value||0,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
+  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:moneyVal('ins-costo')||+document.getElementById('ins-costo').value.replace(/\./g,'')||0,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
   if(eid){const i=S.inventario.find(x=>x.id===eid);if(i)Object.assign(i,data);}
   else S.inventario.push({id:'INS'+uid(),...data});
   recalcularCostosRecetas();saveS();closeM('mo-ins');renderCfg();renderInv();toast('Insumo guardado');
@@ -1789,20 +1867,76 @@ function guardarIns(){
 function elimIns(id){if(!confirm('¿Eliminar?'))return;S.inventario=S.inventario.filter(i=>i.id!==id);saveS();renderCfg();renderInv();toast('Eliminado');}
 
 // CRUD Maquinaria
-function calcDep(){const v=+document.getElementById('maq-val').value||0;const d=+document.getElementById('maq-vida').value||1;document.getElementById('maq-dep').value=fmt(v/d)+'/evento';}
+function calcDep(){const v=moneyVal('maq-val');const d=+document.getElementById('maq-vida').value||1;document.getElementById('maq-dep').value=fmt(v/d)+'/evento';}
 function abrirAddMaq(){document.getElementById('maq-eid').value='';document.getElementById('maq-nom').value='';document.getElementById('maq-val').value='';document.getElementById('maq-vida').value='400';document.getElementById('maq-dep').value='';openM('mo-maq');}
-function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;document.getElementById('maq-val').value=m.valor;document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/evento';openM('mo-maq');}
-function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=+document.getElementById('maq-val').value||0;const vida=+document.getElementById('maq-vida').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
+function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;setMoneyVal('maq-val',m.valor);document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/evento';openM('mo-maq');}
+function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=moneyVal('maq-val');const vida=+document.getElementById('maq-vida').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
 function elimMaq(id){if(!confirm('¿Eliminar?'))return;S.maquinaria=S.maquinaria.filter(m=>m.id!==id);saveS();renderCfg();toast('Eliminado');}
 
 // CRUD Roles
 function abrirAddRol(){document.getElementById('rol-eid').value='';document.getElementById('rol-nom').value='';document.getElementById('rol-tar').value='';openM('mo-rol');}
-function editRol(id){const r=S.roles.find(x=>x.id===id);if(!r)return;document.getElementById('rol-eid').value=id;document.getElementById('rol-nom').value=r.nombre;document.getElementById('rol-tar').value=r.tarifa;openM('mo-rol');}
-function guardarRol(){const eid=document.getElementById('rol-eid').value;const nom=document.getElementById('rol-nom').value.trim();const tar=+document.getElementById('rol-tar').value||0;if(!nom){toast('Ingresa el nombre');return;}if(eid){const r=S.roles.find(x=>x.id===eid);if(r){r.nombre=nom;r.tarifa=tar;}}else S.roles.push({id:'ROL'+uid(),nombre:nom,tarifa:tar});saveS();closeM('mo-rol');renderCfg();toast('Rol guardado');}
+function editRol(id){const r=S.roles.find(x=>x.id===id);if(!r)return;document.getElementById('rol-eid').value=id;document.getElementById('rol-nom').value=r.nombre;setMoneyVal('rol-tar',r.tarifa);openM('mo-rol');}
+function guardarRol(){const eid=document.getElementById('rol-eid').value;const nom=document.getElementById('rol-nom').value.trim();const tar=moneyVal('rol-tar');if(!nom){toast('Ingresa el nombre');return;}if(eid){const r=S.roles.find(x=>x.id===eid);if(r){r.nombre=nom;r.tarifa=tar;}}else S.roles.push({id:'ROL'+uid(),nombre:nom,tarifa:tar});saveS();closeM('mo-rol');renderCfg();toast('Rol guardado');}
 function elimRol(id){if(!confirm('¿Eliminar?'))return;S.roles=S.roles.filter(r=>r.id!==id);saveS();renderCfg();toast('Eliminado');}
+
+// ═══════════════════ BARRAS CONFIG ═══════════════════
+function editarBarra(id){
+  if(!S.barras||!S.barras.length) S.barras=JSON.parse(JSON.stringify(DEF_BARRAS));
+  const b=S.barras.find(x=>x.id===id);if(!b)return;
+  document.getElementById('edit-barra-id').value=id;
+  document.getElementById('edit-barra-title').textContent='Editar: '+b.name;
+  document.getElementById('edit-barra-desc').value=b.desc||'';
+  renderEditBarraBebidas(b);
+  openM('mo-edit-barra');
+}
+function renderEditBarraBebidas(b){
+  const el=document.getElementById('edit-barra-bebidas');
+  const selIds=b.bebidasIds||[];
+  const grupos={};
+  S.recetas.forEach(r=>{if(!grupos[r.barra])grupos[r.barra]=[];grupos[r.barra].push(r);});
+  let html='';
+  Object.keys(grupos).forEach(cat=>{
+    html+=`<div style="grid-column:1/-1;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:6px;padding-top:4px;border-top:1px solid var(--cream3)">${cat}</div>`;
+    grupos[cat].forEach(r=>{
+      const sel=selIds.includes(r.id);
+      html+=`<div onclick="toggleBarraBebida('${r.id}')" style="padding:7px 10px;border:1.5px solid ${sel?'var(--gold)':'var(--cream3)'};background:${sel?'#fffbf2':'var(--white)'};border-radius:8px;cursor:pointer;transition:all .15s" id="bb-${r.id}">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:14px;height:14px;border-radius:50%;background:${sel?'var(--gold)':'var(--cream3)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:white">${sel?'✓':''}</div>
+          <div><div style="font-size:12px;font-weight:500">${r.nombre}</div><div style="font-size:10px;color:var(--muted)">${r.vaso||''} · ${fmt(r.costo)}</div></div>
+        </div></div>`;
+    });
+  });
+  el.innerHTML=html;
+}
+function toggleBarraBebida(recId){
+  const barraId=document.getElementById('edit-barra-id').value;
+  const b=S.barras.find(x=>x.id===barraId);if(!b)return;
+  if(!b.bebidasIds) b.bebidasIds=[];
+  const idx=b.bebidasIds.indexOf(recId);
+  if(idx>=0) b.bebidasIds.splice(idx,1);
+  else b.bebidasIds.push(recId);
+  renderEditBarraBebidas(b);
+}
+function guardarEditBarra(){
+  const id=document.getElementById('edit-barra-id').value;
+  const b=S.barras.find(x=>x.id===id);if(!b)return;
+  b.desc=document.getElementById('edit-barra-desc').value;
+  saveS();closeM('mo-edit-barra');renderCfg();renderBarras();toast('✅ Barra actualizada');
+}
 
 // ═══════════════════ CONFIG ═══════════════════
 function renderCfg(){
+  const barras=S.barras&&S.barras.length?S.barras:DEF_BARRAS;
+  document.getElementById('cfg-barras').innerHTML=barras.map(b=>{
+    const bebidasCnt=b.bebidasIds?b.bebidasIds.length:'Auto';
+    return `<tr>
+      <td style="font-size:20px">${b.icon}</td>
+      <td><strong>${b.name}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${b.desc}</td>
+      <td><span class="tag tgold">${bebidasCnt} bebidas</span></td>
+      <td><button class="btn btn-outline btn-xs" onclick="editarBarra('${b.id}')">✏️ Editar bebidas</button></td>
+    </tr>`;
+  }).join('');
   document.getElementById('cfg-ins').innerHTML=S.inventario.map(i=>`<tr><td><span class="tag tgray" style="font-size:9.5px">${i.id}</span></td><td>${i.nombre}</td><td>${i.cat}</td><td>${i.paqNom||'und'}</td><td>${fmtNum(i.paqCant||1)}</td><td>${fmtNum(i.stock||0)}</td><td>${fmtNum(i.minimo||0)}</td><td>${fmt(i.costo)}</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editIns('${i.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimIns('${i.id}')">✕</button></div></td></tr>`).join('');
   document.getElementById('cfg-maq').innerHTML=S.maquinaria.map(m=>`<tr><td>${m.nombre}</td><td>${fmt(m.valor)}</td><td>${fmtNum(m.vidaDias)} días</td><td>${fmt(m.valor/Math.max(m.vidaDias,1))}/evento</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editMaq('${m.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimMaq('${m.id}')">✕</button></div></td></tr>`).join('');
   document.getElementById('cfg-rec').innerHTML=S.recetas.map(r=>`<tr><td>${r.nombre}</td><td><span class="tag tgold">${r.barra}</span></td><td style="font-size:11.5px">${r.vaso||'—'}</td><td style="font-size:11px;color:var(--muted)">${Array.isArray(r.ingredientes)&&r.ingredientes.length?r.ingredientes.length+' ingredientes':'Sin fórmula'}</td><td>${fmt(r.costo)}</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editRec('${r.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimRec('${r.id}')">✕</button></div></td></tr>`).join('');
@@ -1856,7 +1990,7 @@ function exportarCSV(){if(!S.cotizaciones.length){toast('No hay cotizaciones');r
 function exportarInvCSV(){dlCSV([['ID','Ítem','Cat','Paquete','U.base/paq','Stock(paq)','Mín(paq)','Costo/u','Estado'],...S.inventario.map(i=>[i.id,i.nombre,i.cat,i.paqNom||'und',i.paqCant||1,i.stock||0,i.minimo||0,i.costo,(i.stock||0)<=(i.minimo||0)?'REPONER':'OK'])],'kirsten-inventario.csv');}
 function dlCSV(data,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+data.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href);toast('CSV exportado');}
 
-function resetData(){if(!confirm('⚠️ Borrar TODOS los datos. ¿Continuar?'))return;if(!confirm('Segunda confirmación: ¿segura?'))return;localStorage.removeItem('kc_v4');S={cotizaciones:[],inventario:JSON.parse(JSON.stringify(DEF_INS)),maquinaria:JSON.parse(JSON.stringify(DEF_MAQ)),recetas:JSON.parse(JSON.stringify(DEF_REC)),roles:JSON.parse(JSON.stringify(DEF_ROLES)),movimientos:[],eventos:[]};recalcularCostosRecetas();saveS();renderAll();toast('✅ Datos restaurados');}
+function resetData(){if(!confirm('⚠️ Borrar TODOS los datos. ¿Continuar?'))return;if(!confirm('Segunda confirmación: ¿segura?'))return;localStorage.removeItem('kc_v4');S={cotizaciones:[],inventario:JSON.parse(JSON.stringify(DEF_INS)),maquinaria:JSON.parse(JSON.stringify(DEF_MAQ)),recetas:JSON.parse(JSON.stringify(DEF_REC)),roles:JSON.parse(JSON.stringify(DEF_ROLES)),movimientos:[],eventos:[],barras:JSON.parse(JSON.stringify(DEF_BARRAS))};recalcularCostosRecetas();saveS();renderAll();toast('✅ Datos restaurados');}
 function renderAll(){renderDash();renderCots();renderInv();renderRec();renderMovs();renderCfg();window._S=S;window._renderAll=renderAll;}
 
 // ═══════════════════ INIT ═══════════════════
@@ -1877,7 +2011,60 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('ins-paqnom').addEventListener('input',calcInsPreview);
   // Verificar estados automáticos del calendario cada minuto
   setInterval(actualizarEstadosAutomaticos,60000);
+  // ── Separador de miles en inputs de dinero ──
+  setupMoneyInputs();
 });
+
+// Inputs de dinero — formateo con separador de miles al escribir
+// Usamos type="text" virtualmente: guardamos el valor numérico real
+// pero mostramos con puntos. Los inputs que aplican tienen data-money.
+function setupMoneyInputs(){
+  // IDs de todos los inputs de dinero en la app
+  const moneyIds=[
+    'f-transporte','f-imprevistos','f-otros',
+    'ec-trans','ec-imp','ec-otros',
+    'ins-costo','maq-val','rol-tar',
+    'rec-costo','beb-custom-costo',
+    'ev-cobrado','ec-precio',
+    'mov-cant'
+  ];
+  moneyIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    // Cambiar a type text para poder mostrar puntos
+    el.setAttribute('type','text');
+    el.setAttribute('inputmode','numeric');
+    el.addEventListener('input',function(){
+      const pos=this.selectionStart;
+      const raw=this.value.replace(/\./g,'').replace(/[^\d]/g,'');
+      if(raw===''){this.value='';return;}
+      const num=parseInt(raw,10);
+      const formatted=num.toLocaleString('es-CO');
+      this.value=formatted;
+      // Mantener cursor al final es más simple y claro
+    });
+    el.addEventListener('blur',function(){
+      const raw=this.value.replace(/\./g,'').replace(/[^\d]/g,'');
+      if(raw){this.value=parseInt(raw,10).toLocaleString('es-CO');}
+    });
+    el.addEventListener('focus',function(){this.select();});
+  });
+}
+
+// Helper para leer valor numérico real de un input de dinero
+function moneyVal(id){
+  const el=document.getElementById(id);
+  if(!el)return 0;
+  const raw=el.value.replace(/\./g,'').replace(/,/g,'').replace(/[^\d]/g,'');
+  return raw?parseInt(raw,10):0;
+}
+
+// Helper para escribir valor formateado en un input de dinero
+function setMoneyVal(id,num){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.value=num?Math.round(num).toLocaleString('es-CO'):'';
+}
 </script>
 </body>
 </html>
