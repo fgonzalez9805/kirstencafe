@@ -8,6 +8,8 @@
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+  import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
   const firebaseConfig = {
     apiKey: "AIzaSyAyg4VnPlCVfzXGP8onjw-l8lfxL-bcIfA",
     authDomain: "kirsten-cafe.firebaseapp.com",
@@ -16,9 +18,14 @@
     messagingSenderId: "651141393465",
     appId: "1:651141393465:web:4cb301f942093b6f5c31e8"
   };
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
   const docRef = doc(db, 'kirstencafe', 'data');
+  let dbListener = null;
+
+  // Guardar en Firestore
   window._fbSave = async (data) => {
     try {
       await setDoc(docRef, data);
@@ -28,24 +35,75 @@
       console.error('Firebase save error:', e);
     }
   };
-  window._setSS && window._setSS('syncing','Conectando a Firebase...');
-  onSnapshot(docRef, (snapshot) => {
-    if(snapshot.exists()){
-      const remote = snapshot.data();
-      if(window._S){ window._S = {...window._S, ...remote}; S = window._S; }
-      localStorage.setItem('kc_v4', JSON.stringify(window._S||{}));
-      window._setSS && window._setSS('ok','Firebase · '+new Date().toLocaleTimeString('es-CO'));
-      const fbDot=document.getElementById('fb-dot');
-      const fbTxt=document.getElementById('fb-status-text');
-      if(fbDot) fbDot.className='sync-dot ok';
-      if(fbTxt) fbTxt.textContent='Conectado — sincronización en tiempo real activa';
-      if(window._renderAll) window._renderAll();
-    } else {
-      if(window._S && window._fbSave) window._fbSave(window._S);
+
+  // Login con Google
+  window._loginGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      console.error('Login error:', e);
+      const errEl = document.getElementById('login-error');
+      if(errEl) errEl.textContent = 'Error al iniciar sesión: ' + e.message;
     }
-  }, (err) => {
-    window._setSS && window._setSS('err','Error Firebase: '+err.code);
-    console.error('Firestore error:', err);
+  };
+
+  // Login con email/contraseña
+  window._loginEmail = async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch(e) {
+      const errEl = document.getElementById('login-error');
+      if(errEl){
+        if(e.code==='auth/wrong-password'||e.code==='auth/user-not-found'||e.code==='auth/invalid-credential')
+          errEl.textContent = 'Email o contraseña incorrectos';
+        else errEl.textContent = 'Error: ' + e.message;
+      }
+    }
+  };
+
+  // Cerrar sesión
+  window._logout = async () => {
+    if(dbListener){ dbListener(); dbListener=null; }
+    await signOut(auth);
+  };
+
+  // Escuchar cambios de autenticación
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      // Usuario autenticado — mostrar app
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app-screen').style.display='block';
+      // Mostrar nombre en sync bar
+      const userEl = document.getElementById('user-name');
+      if(userEl) userEl.textContent = user.displayName || user.email;
+      window._setSS && window._setSS('syncing','Conectando a Firebase...');
+      // Escuchar datos en tiempo real
+      if(dbListener) dbListener();
+      dbListener = onSnapshot(docRef, (snapshot) => {
+        if(snapshot.exists()){
+          const remote = snapshot.data();
+          if(window._S){ window._S = {...window._S, ...remote}; S = window._S; }
+          localStorage.setItem('kc_v4', JSON.stringify(window._S||{}));
+          window._setSS && window._setSS('ok','Firebase · '+new Date().toLocaleTimeString('es-CO'));
+          const fbDot=document.getElementById('fb-dot');
+          const fbTxt=document.getElementById('fb-status-text');
+          if(fbDot) fbDot.className='sync-dot ok';
+          if(fbTxt) fbTxt.textContent='Conectado — sincronización en tiempo real activa';
+          if(window._renderAll) window._renderAll();
+        } else {
+          if(window._S && window._fbSave) window._fbSave(window._S);
+        }
+      }, (err) => {
+        window._setSS && window._setSS('err','Error: '+err.code);
+        console.error('Firestore error:', err);
+      });
+    } else {
+      // No autenticado — mostrar pantalla de login
+      if(dbListener){ dbListener(); dbListener=null; }
+      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('app-screen').style.display='none';
+    }
   });
 </script>
 <script>
@@ -170,6 +228,16 @@ tr:hover td{background:var(--cream)}
 .empty{text-align:center;padding:30px 20px;color:var(--muted2)}
 .empty-icon{font-size:34px;margin-bottom:10px;opacity:.5}
 input.hi{background:#fffbe6;border-color:var(--gold)}
+/* Login screen */
+#login-screen{display:flex;position:fixed;inset:0;background:linear-gradient(135deg,var(--espresso) 0%,#2a0f00 60%,#1a0500 100%);z-index:9999;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--white);border-radius:20px;padding:40px 36px;width:400px;max-width:100%;box-shadow:0 32px 80px rgba(0,0,0,.4);text-align:center}
+.login-logo{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--coffee);margin-bottom:4px}
+.login-logo span{color:var(--gold)}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.login-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--cream3)}
+.login-error{color:var(--red);font-size:12.5px;margin-top:10px;min-height:18px}
+#app-screen{display:none}
 /* Calendario */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
 .cal-day{min-height:80px;background:var(--white);border:1px solid var(--cream3);border-radius:8px;padding:6px;font-size:11px;cursor:pointer;transition:background .15s;position:relative}
@@ -195,7 +263,44 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 </style>
 </head>
 <body>
-<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Conectando...</span><button class="btn btn-outline btn-xs no-print" onclick="sincronizarManual()" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)">🔄 Sync</button></div>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Kirsten <span>Café</span></div>
+    <div class="login-sub">Sistema de gestión de eventos</div>
+
+    <!-- Login con Google -->
+    <button onclick="window._loginGoogle()" style="width:100%;padding:11px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;color:#333;transition:background .15s;margin-bottom:4px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Entrar con Google
+    </button>
+
+    <div class="login-divider">o</div>
+
+    <!-- Login con email/contraseña -->
+    <div style="text-align:left;margin-bottom:10px">
+      <div style="margin-bottom:8px">
+        <label style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email</label>
+        <input id="login-email" type="email" placeholder="tu@email.com" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" onfocus="this.style.borderColor='#C9973A'" onblur="this.style.borderColor='#e0e0e0'">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Contraseña</label>
+        <input id="login-pass" type="password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none" onfocus="this.style.borderColor='#C9973A'" onblur="this.style.borderColor='#e0e0e0'" onkeydown="if(event.key==='Enter')loginEmail()">
+      </div>
+      <button onclick="loginEmail()" style="width:100%;padding:10px;background:#3D1C02;color:#F2EBE0;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer" onmouseover="this.style.background='#1A0A00'" onmouseout="this.style.background='#3D1C02'">
+        Iniciar sesión
+      </button>
+    </div>
+
+    <div class="login-error" id="login-error"></div>
+    <div style="font-size:11px;color:#aaa;margin-top:16px">Acceso restringido — solo usuarios autorizados</div>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app-screen">
+<div class="sync-bar"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">Conectando...</span><span id="user-name" style="margin-left:8px;opacity:.6;font-size:11px"></span><button class="btn btn-outline btn-xs no-print" onclick="cerrarSesion()" style="margin-left:auto;color:var(--gold2);border-color:rgba(201,151,58,.4)">Cerrar sesión</button></div>
 <nav>
   <div class="nav-brand">Kirsten <span>Café</span></div>
   <div class="nav-tabs">
@@ -240,7 +345,46 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
           <div class="fg"><label>Horas de servicio/día</label><input id="f-horas" type="number" min="1" max="24" value="4" oninput="calcCot()"></div>
           <div class="fg"><label>Días del evento (1-10)</label><input id="f-dias" type="number" min="1" max="10" value="1" oninput="calcCot()"></div>
         </div>
-        <div class="fg"><label>Notas para el cliente</label><textarea id="f-notas" rows="2" placeholder="Incluye, condiciones, observaciones..."></textarea></div>
+        <div class="fg"><label>Saludo del documento</label>
+          <select id="f-saludo"><option value="Cordial saludo,">Cordial saludo,</option><option value="Buen día,">Buen día,</option><option value="Estimado cliente,">Estimado cliente,</option><option value="Estimada cliente,">Estimada cliente,</option><option value="Buenos días,">Buenos días,</option></select>
+        </div>
+        <div class="fg"><label>Requerimientos del evento</label>
+          <textarea id="f-requerimientos" rows="4" placeholder="• Dos (2) puntos sencillos de energía a 110 voltios con capacidad para breaker de 30 amperios.&#10;• Una mesa.&#10;• Dos canecas."></textarea>
+        </div>
+        <div class="fg"><label>Notas adicionales para el cliente</label><textarea id="f-notas" rows="2" placeholder="Incluye, condiciones, observaciones..."></textarea></div>
+      </div>
+
+      <!-- EXTRAS COTIZACIÓN -->
+      <div class="card">
+        <div class="card-title">Extras de la cotización</div>
+
+        <!-- Vajilla o desechables -->
+        <div class="fg"><label>Vajilla o desechables</label>
+          <select id="f-vajilla"><option value="">No especificado</option><option value="Desechables">Desechables</option><option value="Vajilla">Vajilla</option><option value="Desechables biodegradables">Desechables biodegradables</option></select>
+        </div>
+
+        <!-- Alquiler de equipos -->
+        <div class="fg">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><label style="margin:0">Alquiler de equipos externos</label><button class="btn btn-outline btn-xs" onclick="addAlquiler()">+ Añadir</button></div>
+          <div id="alquiler-list"><div style="font-size:12px;color:var(--muted2);padding:4px">Sin equipos alquilados</div></div>
+        </div>
+
+        <!-- Delicates -->
+        <div class="fg">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><label style="margin:0">Delicates (productos complementarios)</label><button class="btn btn-outline btn-xs" onclick="addDelicate()">+ Añadir</button></div>
+          <div id="delicates-list"><div style="font-size:12px;color:var(--muted2);padding:4px">Sin delicates</div></div>
+        </div>
+
+        <!-- Souvenirs -->
+        <div class="fg">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><label style="margin:0">Souvenirs de café</label><button class="btn btn-outline btn-xs" onclick="addSouvenir()">+ Añadir</button></div>
+          <div id="souvenirs-list"><div style="font-size:12px;color:var(--muted2);padding:4px">Sin souvenirs</div></div>
+        </div>
+
+        <!-- Valor logístico -->
+        <div class="fg"><label>Valor logístico (checklist, cierre, actividades) COP</label>
+          <input id="f-logistico" type="text" inputmode="numeric" placeholder="0" oninput="calcCot()" value="0">
+        </div>
       </div>
       <div class="card">
         <div class="card-title">Tipo de Barra</div>
@@ -306,6 +450,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
         <div class="ci-row"><span id="ci-trans-label">Transporte</span><span id="ci-trans">—</span></div>
         <div class="ci-row"><span>Imprevistos</span><span id="ci-imp">—</span></div>
         <div class="ci-row"><span>Otros</span><span id="ci-otros">—</span></div>
+        <div class="ci-row"><span>Extras (alquiler+delicates+souvenir+logística)</span><span id="ci-extras">—</span></div>
         <div class="ci-row sep"><span>Costo operativo total</span><span id="ci-ctotal">—</span></div>
         <div class="ci-row margen"><span id="ci-mlabel">Margen (35%)</span><span id="ci-mval">—</span></div>
         <div class="ci-row" style="color:var(--muted)"><span>Descuento</span><span id="ci-desc">—</span></div>
@@ -508,6 +653,12 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importarBackup(this)">
   </div>
   <div class="card"><div class="card-title">☕ Tipos de Barra <span style="font-size:11px;color:var(--muted);font-weight:400">(bebidas que aparecen preseleccionadas)</span></div><div class="tw"><table><thead><tr><th>Icono</th><th>Nombre</th><th>Descripción</th><th>Bebidas incluidas</th><th></th></tr></thead><tbody id="cfg-barras"></tbody></table></div></div>
+  <!-- IMÁGENES DEL PDF -->
+  <div class="card">
+    <div class="card-title">🖼 Imágenes del PDF corporativo</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Sube las imágenes aquí y se usarán automáticamente en todas las cotizaciones. Se guardan en Firebase.</div>
+    <div id="cfg-imagenes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div>
+  </div>
   <div class="card"><div class="card-title">📦 Insumos <button class="btn btn-outline btn-sm no-print" onclick="abrirAddIns()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>ID</th><th>Nombre</th><th>Cat.</th><th>Paquete</th><th>U.base/paq</th><th>Stock (paq)</th><th>Mín (paq)</th><th>Costo/u base</th><th></th></tr></thead><tbody id="cfg-ins"></tbody></table></div></div>
   <div class="card"><div class="card-title">🔧 Maquinaria <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div><div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Vida útil en días de uso efectivo (80 días/año × años). Ej: 5 años = 400 días.</div><div class="tw"><table><thead><tr><th>Equipo</th><th>Valor compra</th><th>Días uso total</th><th>Dep/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div></div>
   <div class="card"><div class="card-title">📖 Recetas <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRec()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Vaso</th><th>Ingredientes</th><th>Costo</th><th></th></tr></thead><tbody id="cfg-rec"></tbody></table></div></div>
@@ -726,9 +877,29 @@ const DEF_ROLES=[
   {id:'ROL2',nombre:'Barista junior',tarifa:120000},
   {id:'ROL3',nombre:'Coordinador de eventos',tarifa:280000},
 ];
+const DEF_DELICATES=[
+  {id:'DEL1',nombre:'Mini alfajores',precioUnit:3500},
+  {id:'DEL2',nombre:'Mini deditos de queso',precioUnit:2500},
+  {id:'DEL3',nombre:'Mini galletas',precioUnit:2000},
+  {id:'DEL4',nombre:'Rollos de canela',precioUnit:4500},
+];
+const DEF_SOUVENIRS=[
+  {id:'SOU1',nombre:'Bolsa café 100g',precioUnit:18000},
+  {id:'SOU2',nombre:'Taza personalizada',precioUnit:25000},
+  {id:'SOU3',nombre:'Filtro para café',precioUnit:8000},
+];
+// Imágenes del PDF — se cargan desde S.imgPDF (Firebase)
+function IMG_LOGO_TITULO(){return S.imgPDF&&S.imgPDF.logo?S.imgPDF.logo:'';}
+function IMG_LOGO_MARCA(){return S.imgPDF&&S.imgPDF.marca?S.imgPDF.marca:'';}
+function IMG_HOJAS(){return S.imgPDF&&S.imgPDF.hojas?S.imgPDF.hojas:'';}
+function IMG_FOOTER(){return S.imgPDF&&S.imgPDF.footer?S.imgPDF.footer:'';}
+function IMG_CAFE_COL(){return S.imgPDF&&S.imgPDF.cafecol?S.imgPDF.cafecol:'';}
+function IMG_ORIGEN(){return S.imgPDF&&S.imgPDF.origen?S.imgPDF.origen:'';}
+function IMG_ANTOJATE(){return S.imgPDF&&S.imgPDF.antojate?S.imgPDF.antojate:'';}
+
 
 // ═══════════════════ STATE ═══════════════════
-let S={cotizaciones:[],inventario:[],maquinaria:[],recetas:[],roles:[],movimientos:[],eventos:[],barras:[]};
+let S={cotizaciones:[],inventario:[],maquinaria:[],recetas:[],roles:[],movimientos:[],eventos:[],barras:[],delicates:[],souvenirs:[],imgPDF:{}};
 let personal_cot=[];
 let barraActiva=null;
 let cotVerID=null;
@@ -743,6 +914,9 @@ let recIngEditing=[];
 let recVerID=null;
 let calYear=new Date().getFullYear();
 let calMonth=new Date().getMonth();
+let alquilerItems=[];   // [{nombre, valor}]
+let delicateItems=[];   // [{nombre, cantidad, precioUnit}]
+let souvenirItems=[];   // [{nombre, cantidad, precioUnit}]
 
 // ═══════════════════ FIREBASE BRIDGE ═══════════════════
 function setSS(st,msg){
@@ -784,6 +958,9 @@ function loadS(){
     if(!S.movimientos)S.movimientos=[];
     if(!S.eventos)S.eventos=[];
     if(!S.barras||!S.barras.length) S.barras=JSON.parse(JSON.stringify(DEF_BARRAS));
+    if(!S.delicates) S.delicates=JSON.parse(JSON.stringify(DEF_DELICATES));
+    if(!S.souvenirs) S.souvenirs=JSON.parse(JSON.stringify(DEF_SOUVENIRS));
+    if(!S.imgPDF) S.imgPDF={};
     // Calcular costos de recetas desde ingredientes
     recalcularCostosRecetas();
     window._S=S;
@@ -845,9 +1022,16 @@ function showPage(id){
   document.getElementById('page-'+id).classList.add('active');
   const map={dashboard:0,cotizacion:1,lista:2,calendario:3,evento:4,inventario:5,recetario:6,movimientos:7,config:8};
   if(map[id]!==undefined)document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
-  if(id==='cotizacion'){barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;renderBarras();renderPersonal();document.getElementById('bebidas-panel').style.display='none';actualizarToggleTrans();
+  if(id==='cotizacion'){
+    barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;
+    alquilerItems=[];delicateItems=[];souvenirItems=[];
+    renderBarras();renderPersonal();renderAlquiler();renderDelicates();renderSouvenirs();
+    document.getElementById('bebidas-panel').style.display='none';
+    actualizarToggleTrans();
     setMoneyVal('f-transporte',80000);setMoneyVal('f-imprevistos',30000);setMoneyVal('f-otros',0);
-    calcCot();}
+    const fLog=document.getElementById('f-logistico');if(fLog)fLog.value='0';
+    calcCot();
+  }
   if(id==='dashboard')renderDash();
   if(id==='lista'){renderCots();fillEvSel();}
   if(id==='calendario'){actualizarEstadosAutomaticos();renderCalendario();}
@@ -962,6 +1146,63 @@ function actualizarToggleTransEdit(){
 }
 function toggleTransporteEdit(){transIncluidoEdit=!transIncluidoEdit;actualizarToggleTransEdit();calcEditCot();}
 
+// ═══════════════════ EXTRAS COTIZACIÓN ═══════════════════
+function addAlquiler(){
+  alquilerItems.push({nombre:'',valor:0});
+  renderAlquiler();
+}
+function renderAlquiler(){
+  const el=document.getElementById('alquiler-list');
+  if(!alquilerItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin equipos alquilados</div>';calcCot();return;}
+  el.innerHTML=alquilerItems.map((item,i)=>`
+    <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+      <input type="text" placeholder="Ej: Máquina espresso" value="${item.nombre}" oninput="alquilerItems[${i}].nombre=this.value" style="flex:1;font-size:12.5px;padding:7px 10px">
+      <input type="text" inputmode="numeric" placeholder="Valor COP" value="${item.valor?Math.round(item.valor).toLocaleString('es-CO'):''}" oninput="alquilerItems[${i}].valor=+this.value.replace(/\\./g,'').replace(/[^\\d]/g,'');calcCot()" style="width:130px;font-size:12.5px;padding:7px 10px">
+      <button class="btn btn-danger btn-xs" onclick="alquilerItems.splice(${i},1);renderAlquiler()">✕</button>
+    </div>`).join('');
+  calcCot();
+}
+
+function addDelicate(){
+  delicateItems.push({nombre:'',cantidad:1,precioUnit:0});
+  renderDelicates();
+}
+function renderDelicates(){
+  const el=document.getElementById('delicates-list');
+  if(!delicateItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin delicates</div>';calcCot();return;}
+  el.innerHTML=delicateItems.map((item,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
+      <input type="text" placeholder="Ej: Mini alfajores" value="${item.nombre}" oninput="delicateItems[${i}].nombre=this.value" style="flex:1;min-width:120px;font-size:12px;padding:6px 8px">
+      <input type="number" placeholder="Cant." min="1" value="${item.cantidad}" oninput="delicateItems[${i}].cantidad=+this.value;calcCot()" style="width:60px;font-size:12px;padding:6px 8px">
+      <input type="text" inputmode="numeric" placeholder="Precio/u" value="${item.precioUnit?Math.round(item.precioUnit).toLocaleString('es-CO'):''}" oninput="delicateItems[${i}].precioUnit=+this.value.replace(/\\./g,'').replace(/[^\\d]/g,'');calcCot()" style="width:110px;font-size:12px;padding:6px 8px">
+      <span style="font-size:11px;color:var(--sage);white-space:nowrap">${fmt(item.cantidad*item.precioUnit)}</span>
+      <button class="btn btn-danger btn-xs" onclick="delicateItems.splice(${i},1);renderDelicates()">✕</button>
+    </div>`).join('');
+  calcCot();
+}
+
+function addSouvenir(){
+  souvenirItems.push({nombre:'',cantidad:1,precioUnit:0});
+  renderSouvenirs();
+}
+function renderSouvenirs(){
+  const el=document.getElementById('souvenirs-list');
+  if(!souvenirItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin souvenirs</div>';calcCot();return;}
+  el.innerHTML=souvenirItems.map((item,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
+      <input type="text" placeholder="Ej: Bolsa café 250g" value="${item.nombre}" oninput="souvenirItems[${i}].nombre=this.value" style="flex:1;min-width:120px;font-size:12px;padding:6px 8px">
+      <input type="number" placeholder="Cant." min="1" value="${item.cantidad}" oninput="souvenirItems[${i}].cantidad=+this.value;calcCot()" style="width:60px;font-size:12px;padding:6px 8px">
+      <input type="text" inputmode="numeric" placeholder="Precio/u" value="${item.precioUnit?Math.round(item.precioUnit).toLocaleString('es-CO'):''}" oninput="souvenirItems[${i}].precioUnit=+this.value.replace(/\\./g,'').replace(/[^\\d]/g,'');calcCot()" style="width:110px;font-size:12px;padding:6px 8px">
+      <span style="font-size:11px;color:var(--sage);white-space:nowrap">${fmt(item.cantidad*item.precioUnit)}</span>
+      <button class="btn btn-danger btn-xs" onclick="souvenirItems.splice(${i},1);renderSouvenirs()">✕</button>
+    </div>`).join('');
+  calcCot();
+}
+
+function totalAlquiler(){return alquilerItems.reduce((a,i)=>a+(i.valor||0),0);}
+function totalDelicates(){return delicateItems.reduce((a,i)=>a+(i.cantidad||0)*(i.precioUnit||0),0);}
+function totalSouvenirs(){return souvenirItems.reduce((a,i)=>a+(i.cantidad||0)*(i.precioUnit||0),0);}
+
 // ═══════════════════ CALC COTIZACIÓN ═══════════════════
 function calcCot(){
   const personas=+document.getElementById('f-personas').value||0;
@@ -973,6 +1214,11 @@ function calcCot(){
   const trans=transIncluidoNew?moneyVal('f-transporte'):0;
   const imp=moneyVal('f-imprevistos');
   const otros=moneyVal('f-otros');
+  const logistico=moneyVal('f-logistico')||0;
+  const tAlquiler=totalAlquiler();
+  const tDelicates=totalDelicates();
+  const tSouvenirs=totalSouvenirs();
+  const extrasTotal=tAlquiler+tDelicates+tSouvenirs+logistico;
   const cliente=document.getElementById('f-cliente').value||'—';
 
   // Costo insumos: 1 bebida por persona, usar costo promedio de bebidas seleccionadas
@@ -1010,13 +1256,16 @@ function calcCot(){
   document.getElementById('ci-imp').textContent=fmt(imp);
   document.getElementById('ci-otros').textContent=fmt(otros);
   document.getElementById('ci-ctotal').textContent=fmt(costoTotal);
+  // Show extras in desglose
+  const ciExtras=document.getElementById('ci-extras');
+  if(ciExtras) ciExtras.textContent=extrasTotal>0?fmt(extrasTotal):'—';
   document.getElementById('ci-mlabel').textContent='Margen ('+Math.round(margen*100)+'%)';
   document.getElementById('ci-mval').textContent='+'+fmt(vMargen);
   document.getElementById('ci-desc').textContent=desc>0?'-'+fmt(vDesc):'—';
   document.getElementById('ci-iva').textContent=iva>0?'+'+fmt(vIva):'—';
   document.getElementById('ci-final').textContent=fmt(precioFinal);
   renderLP(personas,dias);
-  return {personas,horas,dias,costoInsBruto,merma,costoIns,costoPersonal,costoDep,trans,transIncluido:transIncluidoNew,imp,otros,costoTotal,margen,vMargen,desc,vDesc,iva,vIva,precioFinal};
+  return {personas,horas,dias,costoInsBruto,merma,costoIns,costoPersonal,costoDep,trans,transIncluido:transIncluidoNew,imp,otros,logistico,tAlquiler,tDelicates,tSouvenirs,extrasTotal,costoTotal,margen,vMargen,desc,vDesc,iva,vIva,precioFinal};
 }
 
 function renderLP(personas,dias){
@@ -1048,12 +1297,20 @@ function guardarCot(){
     fecha:document.getElementById('f-fecha').value||new Date().toISOString().split('T')[0],
     ciudad:document.getElementById('f-ciudad').value,
     lugar:document.getElementById('f-lugar').value,
-    notas:document.getElementById('f-notas').value,
+    saludo:document.getElementById('f-saludo').value,
+    requerimientos:document.getElementById('f-requerimientos').value,
+    vajilla:document.getElementById('f-vajilla').value,
+    alquiler:JSON.parse(JSON.stringify(alquilerItems)),
+    delicates:JSON.parse(JSON.stringify(delicateItems)),
+    souvenirs:JSON.parse(JSON.stringify(souvenirItems)),
+    logistico:moneyVal('f-logistico')||0,
     personas:n.personas,horas:n.horas,dias:n.dias,
     costoInsBruto:n.costoInsBruto,merma:n.merma,costoIns:n.costoIns,
     costoPersonal:n.costoPersonal,costoDep:n.costoDep,
     trans:n.trans,transIncluido:n.transIncluido,
-    imp:n.imp,otros:n.otros,costoTotal:n.costoTotal,
+    imp:n.imp,otros:n.otros,logistico:n.logistico,
+    tAlquiler:n.tAlquiler,tDelicates:n.tDelicates,tSouvenirs:n.tSouvenirs,extrasTotal:n.extrasTotal,
+    costoTotal:n.costoTotal,
     margen:n.margen,vMargen:n.vMargen,desc:n.desc,vDesc:n.vDesc,
     iva:n.iva,vIva:n.vIva,precioFinal:n.precioFinal,
     personal:JSON.parse(JSON.stringify(personal_cot)),
@@ -1088,35 +1345,132 @@ function calcListaCompras(bebidas,personas,dias){
 
 // ═══════════════════ PDF ═══════════════════
 function genPDF(c){
-  const b=DEF_BARRAS.find(x=>x.id===c.barraId);
-  return `<div class="pdf-doc">
-    <div class="pdf-head"><div><div class="pdf-brand">Kirsten Café<span>Barras de café para eventos especiales</span></div></div><div class="pdf-id">Cotización<strong>${c.id}</strong><div style="margin-top:3px">Válida 15 días</div></div></div>
-    <div class="pdf-section"><h4>Datos del evento</h4>
-      <div class="pdf-row"><span>Cliente</span><strong>${c.cliente}</strong></div>
-      <div class="pdf-row"><span>Fecha</span><span>${c.fecha||'Por definir'}</span></div>
-      <div class="pdf-row"><span>Ciudad / Lugar</span><span>${c.ciudad||'—'}${c.lugar?' — '+c.lugar:''}</span></div>
-      <div class="pdf-row"><span>Duración</span><span>${c.horas}h/día × ${c.dias} día(s)</span></div>
+  const b=DEF_BARRAS.find(x=>x.id===c.barraId)||{};
+  const fechaFin=c.dias>1?calcFechaFin(c.fecha,c.dias):'';
+  const saludo=c.saludo||'Cordial saludo,';
+  const reqs=c.requerimientos||'';
+  const vajilla=c.vajilla||'';
+  const alquiler=Array.isArray(c.alquiler)?c.alquiler:[];
+  const delicates=Array.isArray(c.delicates)?c.delicates:[];
+  const souvenirs=Array.isArray(c.souvenirs)?c.souvenirs:[];
+  const logistico=c.logistico||0;
+  const iLogo=IMG_LOGO_TITULO();const iMarca=IMG_LOGO_MARCA();
+  const iHojas=IMG_HOJAS();const iFooter=IMG_FOOTER();
+  const iCafecol=IMG_CAFE_COL();const iOrigen=IMG_ORIGEN();const iAntojate=IMG_ANTOJATE();
+
+  return `<div class="pdf-doc" style="position:relative;overflow:hidden;font-family:'DM Sans',sans-serif">
+
+    <!-- MARCA DE AGUA centrada -->
+    ${iMarca?`<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.06;z-index:0;pointer-events:none;width:320px;height:320px"><img src="${iMarca}" style="width:100%;height:100%;object-fit:contain"></div>`:''}
+
+    <!-- Contenido sobre la marca de agua -->
+    <div style="position:relative;z-index:1">
+
+    <!-- ENCABEZADO -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
+      <div style="flex:1">
+        ${iLogo?`<img src="${iLogo}" style="height:60px;object-fit:contain;display:block">`:`<div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#3D1C02">Kirsten Café</div>`}
+        <div style="font-size:10px;color:#7A5C46;margin-top:6px;line-height:1.5">Cotización N° <strong style="color:#3D1C02">${c.id}</strong><br>Válida por 15 días</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${iHojas?`<img src="${iHojas}" style="height:45px;object-fit:contain;display:block;margin-left:auto;margin-bottom:6px;opacity:0.85">`:''}
+        <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center">
+          ${iCafecol?`<img src="${iCafecol}" style="height:34px;object-fit:contain" title="Café de Colombia">`:''}
+          ${iOrigen?`<img src="${iOrigen}" style="height:34px;object-fit:contain" title="Denominación de Origen">`:''}
+          ${iAntojate?`<img src="${iAntojate}" style="height:34px;object-fit:contain" title="Antójate de Antioquia">`:''}
+        </div>
+      </div>
     </div>
-    <div class="pdf-section"><h4>Servicio</h4>
-      <div class="pdf-row"><span>Tipo de barra</span><strong>${c.barraName}</strong></div>
-      <div class="pdf-row"><span>Asistentes / bebidas</span><span>${fmtNum(c.personas)} personas (1 bebida c/u)</span></div>
-      ${b?`<div style="font-size:12px;color:var(--muted);margin-top:6px;padding:7px 9px;background:var(--cream);border-radius:5px;line-height:1.5">${b.desc}</div>`:''}
-      ${c.bebidas&&c.bebidas.length?`<div style="margin-top:7px"><div style="font-size:9.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Menú</div>${c.bebidas.map(bv=>`<span style="display:inline-block;background:var(--cream2);border-radius:20px;padding:2px 8px;font-size:11px;margin:2px 3px 2px 0">${bv.nombre}</span>`).join('')}</div>`:''}
+
+    <!-- SALUDO -->
+    <div style="margin-bottom:14px;font-size:13px;color:#3D1C02">${saludo}</div>
+    <div style="margin-bottom:16px;font-size:12.5px;color:#2C1A0E;line-height:1.6">
+      Me permito presentarle la siguiente cotización para el servicio de barra de café especialidad para su evento.
     </div>
-    <div class="pdf-section"><h4>Incluye</h4><ul style="padding-left:14px;font-size:12px;line-height:1.8">
-      <li>Baristas especializados</li><li>Equipos profesionales de extracción</li>
-      <li>Insumos y empaques de primera calidad</li><li>Montaje y desmontaje de la barra</li>
-      ${c.transIncluido&&c.trans>0?'<li>Transporte incluido</li>':''}
-      ${c.notas?`<li>${c.notas}</li>`:''}
-    </ul></div>
-    <div class="pdf-section"><h4>Inversión</h4>
-      <div class="pdf-row"><span>Personas / bebidas</span><span>${fmtNum(c.personas)}</span></div>
-      ${c.desc>0?`<div class="pdf-row"><span>Descuento (${Math.round(c.desc*100)}%)</span><span>− ${fmt(c.vDesc)}</span></div>`:''}
-      ${c.iva>0?`<div class="pdf-row"><span>IVA 19%</span><span>+ ${fmt(c.vIva||0)}</span></div>`:''}
-      <div class="pdf-total"><span>Valor total del evento</span><span>${fmt(c.precioFinal)}</span></div>
-      <div style="text-align:right;font-size:11.5px;color:var(--muted);margin-top:3px">${fmt(c.precioFinal/c.personas)} por persona</div>
+
+    <!-- DATOS DEL EVENTO -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Datos del evento</div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Cliente</span><strong>${c.cliente}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Ciudad / Lugar</span><span>${c.ciudad||'—'}${c.lugar?' — '+c.lugar:''}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Fecha de inicio</span><span>${c.fecha||'Por definir'}</span></div>
+      ${fechaFin?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Fecha de finalización</span><span>${fechaFin}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Duración</span><span>${c.horas}h/día × ${c.dias} día(s)</span></div>
+      ${vajilla?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Servicio con</span><span>${vajilla}</span></div>`:''}
     </div>
-    <div class="pdf-footer">Kirsten Café · Medellín, Colombia · Cotización válida 15 días.</div>
+
+    <!-- SERVICIO -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Servicio</div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Tipo de barra</span><strong>${c.barraName}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span style="color:#7A5C46">Asistentes</span><span>${fmtNum(c.personas)} personas (1 bebida c/u)</span></div>
+      ${c.bebidas&&c.bebidas.length?`<div style="margin-top:7px"><div style="font-size:9px;text-transform:uppercase;color:#7A5C46;margin-bottom:4px;letter-spacing:.8px">Menú de bebidas</div><div>${c.bebidas.map(bv=>`<span style="display:inline-block;background:#F2EBE0;border-radius:20px;padding:2px 9px;font-size:11px;margin:2px 3px 2px 0;color:#3D1C02">${bv.nombre}</span>`).join('')}</div></div>`:''}
+    </div>
+
+    <!-- INCLUYE -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Incluye</div>
+      <ul style="padding-left:14px;font-size:12px;line-height:1.9;color:#2C1A0E">
+        <li>Baristas especializados</li>
+        <li>Equipos profesionales de extracción</li>
+        <li>Insumos y empaques de primera calidad</li>
+        <li>Montaje y desmontaje de la barra</li>
+        ${c.transIncluido&&c.trans>0?'<li>Transporte incluido</li>':''}
+        ${c.notas?`<li>${c.notas}</li>`:''}
+      </ul>
+    </div>
+
+    <!-- ALQUILER DE EQUIPOS -->
+    ${alquiler.length?`<div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Alquiler de equipos</div>
+      ${alquiler.map(a=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>${a.nombre}</span><span>${fmt(a.valor)}</span></div>`).join('')}
+    </div>`:''}
+
+    <!-- DELICATES -->
+    ${delicates.length?`<div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Delicates</div>
+      ${delicates.map(d=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>${d.nombre} × ${fmtNum(d.cantidad)}</span><span>${fmt(d.cantidad*d.precioUnit)}</span></div>`).join('')}
+    </div>`:''}
+
+    <!-- SOUVENIRS -->
+    ${souvenirs.length?`<div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Souvenirs de café</div>
+      ${souvenirs.map(s=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>${s.nombre} × ${fmtNum(s.cantidad)}</span><span>${fmt(s.cantidad*s.precioUnit)}</span></div>`).join('')}
+    </div>`:''}
+
+    <!-- REQUERIMIENTOS -->
+    ${reqs?`<div style="margin-bottom:14px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Requerimientos del evento</div>
+      <div style="font-size:12px;color:#2C1A0E;line-height:1.8;white-space:pre-line">${reqs}</div>
+    </div>`:''}
+
+    <!-- INVERSIÓN -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#7A5C46;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #E8DDD0;font-weight:700">Inversión</div>
+      ${alquiler.length?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>Alquiler equipos</span><span>${fmt(alquiler.reduce((a,x)=>a+x.valor,0))}</span></div>`:''}
+      ${delicates.length?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>Delicates</span><span>${fmt(delicates.reduce((a,x)=>a+x.cantidad*x.precioUnit,0))}</span></div>`:''}
+      ${souvenirs.length?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>Souvenirs</span><span>${fmt(souvenirs.reduce((a,x)=>a+x.cantidad*x.precioUnit,0))}</span></div>`:''}
+      ${logistico>0?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>Valor logístico</span><span>${fmt(logistico)}</span></div>`:''}
+      ${c.desc>0?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>Descuento (${Math.round(c.desc*100)}%)</span><span>− ${fmt(c.vDesc)}</span></div>`:''}
+      ${c.iva>0?`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #E8DDD0;font-size:12px"><span>IVA 19%</span><span>+ ${fmt(c.vIva||0)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #C9973A;margin-top:6px;font-size:16px;font-weight:700;font-family:'Playfair Display',serif;color:#3D1C02">
+        <span>Valor total del evento</span><span>${fmt(c.precioFinal)}</span>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#7A5C46;margin-top:2px">${fmt(c.precioFinal/c.personas)} por persona</div>
+    </div>
+
+    <!-- FIRMA -->
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #E8DDD0">
+      <div style="font-size:12.5px;color:#2C1A0E;margin-bottom:12px">Atentamente,</div>
+      <div style="font-size:13px;font-weight:700;color:#3D1C02;font-family:'Playfair Display',serif;letter-spacing:.5px">KIRSTEN OLMOS HAJDUK</div>
+      <div style="font-size:11.5px;color:#7A5C46;margin-top:2px">Productora - Barista · Gerente</div>
+    </div>
+
+    </div><!-- end z-index:1 -->
+
+    <!-- FOOTER CON IMAGEN -->
+    ${iFooter?`<div style="margin-top:24px;margin-left:-34px;margin-right:-34px;margin-bottom:-32px"><img src="${iFooter}" style="width:100%;display:block;border-radius:0 0 10px 10px"></div>`:''}
+
   </div>`;
 }
 function genDesglose(c){
@@ -1924,6 +2278,59 @@ function guardarEditBarra(){
   saveS();closeM('mo-edit-barra');renderCfg();renderBarras();toast('✅ Barra actualizada');
 }
 
+// ═══════════════════ IMÁGENES PDF ═══════════════════
+const IMG_DEFS=[
+  {key:'logo',label:'Logo horizontal (encabezado)',desc:'Título arriba a la izquierda',w:200,h:70},
+  {key:'marca',label:'Logo circular (marca de agua)',desc:'Centro del documento, 8% opacidad',w:120,h:120},
+  {key:'hojas',label:'Decoración hojas doradas',desc:'Esquina superior derecha',w:160,h:60},
+  {key:'footer',label:'Banner footer',desc:'Pie de página con contacto',w:560,h:60},
+  {key:'cafecol',label:'Café de Colombia',desc:'Sello de acreditación',w:60,h:60},
+  {key:'origen',label:'Denominación de Origen',desc:'Sello de acreditación',w:60,h:60},
+  {key:'antojate',label:'Antójate de Antioquia',desc:'Sello de acreditación',w:60,h:60},
+];
+
+function renderImagenesCfg(){
+  const el=document.getElementById('cfg-imagenes');
+  if(!el)return;
+  if(!S.imgPDF)S.imgPDF={};
+  el.innerHTML=IMG_DEFS.map(def=>{
+    const hasImg=S.imgPDF[def.key];
+    return `<div style="border:1.5px solid var(--cream3);border-radius:10px;padding:12px;text-align:center;background:var(--white)">
+      <div style="font-size:12px;font-weight:600;color:var(--coffee);margin-bottom:4px">${def.label}</div>
+      <div style="font-size:10.5px;color:var(--muted);margin-bottom:10px">${def.desc}</div>
+      ${hasImg
+        ?`<div style="background:var(--cream);border-radius:7px;padding:8px;margin-bottom:8px;min-height:60px;display:flex;align-items:center;justify-content:center"><img src="${S.imgPDF[def.key]}" style="max-width:100%;max-height:80px;object-fit:contain;border-radius:4px"></div><span class="tag tg" style="margin-bottom:8px;display:inline-block">✓ Subida</span>`
+        :`<div style="background:var(--cream);border-radius:7px;padding:8px;margin-bottom:8px;min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--muted2);font-size:12px">Sin imagen</div><span class="tag tgray" style="margin-bottom:8px;display:inline-block">No configurada</span>`
+      }
+      <br>
+      <label class="btn btn-outline btn-xs no-print" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+        📁 ${hasImg?'Cambiar':'Subir'}
+        <input type="file" accept="image/*" style="display:none" onchange="subirImagenPDF('${def.key}',this)">
+      </label>
+      ${hasImg?`<button class="btn btn-danger btn-xs no-print" onclick="eliminarImagenPDF('${def.key}')" style="margin-left:4px">✕</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function subirImagenPDF(key,input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>2*1024*1024){toast('⚠️ Imagen muy grande. Máximo 2MB');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    if(!S.imgPDF)S.imgPDF={};
+    S.imgPDF[key]=e.target.result;
+    saveS();renderImagenesCfg();toast('✅ Imagen guardada en Firebase');
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function eliminarImagenPDF(key){
+  if(!confirm('¿Eliminar esta imagen?'))return;
+  if(S.imgPDF)delete S.imgPDF[key];
+  saveS();renderImagenesCfg();toast('Imagen eliminada');
+}
+
 // ═══════════════════ CONFIG ═══════════════════
 function renderCfg(){
   const barras=S.barras&&S.barras.length?S.barras:DEF_BARRAS;
@@ -1937,6 +2344,7 @@ function renderCfg(){
       <td><button class="btn btn-outline btn-xs" onclick="editarBarra('${b.id}')">✏️ Editar bebidas</button></td>
     </tr>`;
   }).join('');
+  renderImagenesCfg();
   document.getElementById('cfg-ins').innerHTML=S.inventario.map(i=>`<tr><td><span class="tag tgray" style="font-size:9.5px">${i.id}</span></td><td>${i.nombre}</td><td>${i.cat}</td><td>${i.paqNom||'und'}</td><td>${fmtNum(i.paqCant||1)}</td><td>${fmtNum(i.stock||0)}</td><td>${fmtNum(i.minimo||0)}</td><td>${fmt(i.costo)}</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editIns('${i.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimIns('${i.id}')">✕</button></div></td></tr>`).join('');
   document.getElementById('cfg-maq').innerHTML=S.maquinaria.map(m=>`<tr><td>${m.nombre}</td><td>${fmt(m.valor)}</td><td>${fmtNum(m.vidaDias)} días</td><td>${fmt(m.valor/Math.max(m.vidaDias,1))}/evento</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editMaq('${m.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimMaq('${m.id}')">✕</button></div></td></tr>`).join('');
   document.getElementById('cfg-rec').innerHTML=S.recetas.map(r=>`<tr><td>${r.nombre}</td><td><span class="tag tgold">${r.barra}</span></td><td style="font-size:11.5px">${r.vaso||'—'}</td><td style="font-size:11px;color:var(--muted)">${Array.isArray(r.ingredientes)&&r.ingredientes.length?r.ingredientes.length+' ingredientes':'Sin fórmula'}</td><td>${fmt(r.costo)}</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editRec('${r.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimRec('${r.id}')">✕</button></div></td></tr>`).join('');
@@ -2021,7 +2429,7 @@ document.addEventListener('DOMContentLoaded',function(){
 function setupMoneyInputs(){
   // IDs de todos los inputs de dinero en la app
   const moneyIds=[
-    'f-transporte','f-imprevistos','f-otros',
+    'f-transporte','f-imprevistos','f-otros','f-logistico',
     'ec-trans','ec-imp','ec-otros',
     'ins-costo','maq-val','rol-tar',
     'rec-costo','beb-custom-costo',
@@ -2065,6 +2473,23 @@ function setMoneyVal(id,num){
   if(!el)return;
   el.value=num?Math.round(num).toLocaleString('es-CO'):'';
 }
+
+// ─── Auth helpers ───
+function loginEmail(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-error');
+  if(!email||!pass){if(errEl)errEl.textContent='Ingresa email y contraseña';return;}
+  if(errEl)errEl.textContent='';
+  if(window._loginEmail) window._loginEmail(email,pass);
+  else if(errEl) errEl.textContent='Error: autenticación no disponible';
+}
+function cerrarSesion(){
+  if(confirm('¿Cerrar sesión?')){
+    if(window._logout) window._logout();
+  }
+}
 </script>
+</div><!-- end app-screen -->
 </body>
 </html>
