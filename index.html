@@ -444,6 +444,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
       <div class="ci">
         <div class="ci-title">📊 Desglose interno de costos</div>
         <div class="ci-row"><span>Insumos/bebidas</span><span id="ci-insumos">—</span></div>
+        <div class="ci-row" id="ci-impresora-row" style="display:none;color:var(--blue)"><span>🖨️ Impresora latte</span><span id="ci-impresora">—</span></div>
         <div class="ci-row"><span>Merma (10%)</span><span id="ci-merma">—</span></div>
         <div class="ci-row"><span>Personal</span><span id="ci-personal">—</span></div>
         <div class="ci-row"><span>Depreciación equipos</span><span id="ci-dep">—</span></div>
@@ -549,7 +550,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     </div>
     <div class="fr">
       <div class="fg"><label>Fecha</label><input id="ev-fecha" type="date"></div>
-      <div class="fg"><label>Precio cobrado al cliente (COP)</label><input id="ev-cobrado" type="number" placeholder="0" oninput="calcRent()"></div>
+      <div class="fg"><label>Precio según cotización vinculada (COP)</label><input id="ev-cobrado" type="text" inputmode="numeric" placeholder="Se llena desde la cotización" readonly style="background:var(--cream);color:var(--muted)"></div>
     </div>
   </div>
   <div class="stabs">
@@ -597,17 +598,27 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 
 <!-- INVENTARIO -->
 <div id="page-inventario" class="page">
-  <div class="page-title">Inventario</div><div class="page-sub">Stock en paquetes/bolsas. Las unidades base se calculan automáticamente.</div>
+  <div class="page-title">Inventario</div><div class="page-sub">Stock de insumos en paquetes/bolsas. Maquinaria y accesorios con cantidad disponible.</div>
   <div id="inv-alertas"></div>
-  <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" class="no-print">
-    <button class="btn btn-outline btn-sm" onclick="filtrarInv('todos')">Todos</button>
-    <button class="btn btn-outline btn-sm" onclick="filtrarInv('Insumo')">Insumos</button>
-    <button class="btn btn-outline btn-sm" onclick="filtrarInv('Maquinaria')">Maquinaria</button>
-    <button class="btn btn-outline btn-sm" onclick="filtrarInv('Elementos')">Elementos</button>
-    <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="openMov()">+ Movimiento</button>
-    <button class="btn btn-outline btn-sm" onclick="exportarInvCSV()">⬇ CSV</button>
+  <div class="stabs" style="margin-bottom:12px">
+    <button class="stab active" onclick="switchInvTab('insumos')">📦 Insumos</button>
+    <button class="stab" onclick="switchInvTab('maquinaria')">🔧 Maquinaria y Accesorios</button>
   </div>
-  <div class="tw"><table><thead><tr><th>ID</th><th>Ítem</th><th>Cat.</th><th>Stock (paquetes)</th><th>Stock base</th><th>Mín. (paquetes)</th><th>Costo/u base</th><th>Estado</th><th></th></tr></thead><tbody id="tb-inv"></tbody></table></div>
+  <div id="inv-tab-insumos">
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" class="no-print">
+      <button class="btn btn-outline btn-sm" onclick="renderInv('todos')">Todos</button>
+      <button class="btn btn-outline btn-sm" onclick="renderInv('Insumo')">Solo insumos</button>
+      <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="openMov()">+ Movimiento</button>
+      <button class="btn btn-outline btn-sm" onclick="exportarInvCSV()">⬇ CSV</button>
+    </div>
+    <div class="tw"><table><thead><tr><th>ID</th><th>Ítem</th><th>Cat.</th><th>Stock (paquetes)</th><th>Stock base</th><th>Mín. (paquetes)</th><th>Costo/u base</th><th>Estado</th><th></th></tr></thead><tbody id="tb-inv"></tbody></table></div>
+  </div>
+  <div id="inv-tab-maquinaria" style="display:none">
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" class="no-print">
+      <button class="btn btn-primary btn-sm" onclick="abrirAddMaq()">+ Añadir equipo</button>
+    </div>
+    <div class="tw"><table><thead><tr><th>Equipo/Accesorio</th><th>Valor compra</th><th>Cantidad</th><th>Días uso total</th><th>Dep/evento</th><th>Estado</th><th></th></tr></thead><tbody id="tb-maq-inv"></tbody></table></div>
+  </div>
 </div>
 
 <!-- RECETARIO -->
@@ -660,7 +671,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     <div id="cfg-imagenes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div>
   </div>
   <div class="card"><div class="card-title">📦 Insumos <button class="btn btn-outline btn-sm no-print" onclick="abrirAddIns()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>ID</th><th>Nombre</th><th>Cat.</th><th>Paquete</th><th>U.base/paq</th><th>Stock (paq)</th><th>Mín (paq)</th><th>Costo/u base</th><th></th></tr></thead><tbody id="cfg-ins"></tbody></table></div></div>
-  <div class="card"><div class="card-title">🔧 Maquinaria <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div><div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Vida útil en días de uso efectivo (80 días/año × años). Ej: 5 años = 400 días.</div><div class="tw"><table><thead><tr><th>Equipo</th><th>Valor compra</th><th>Días uso total</th><th>Dep/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div></div>
+  <div class="card"><div class="card-title">🔧 Maquinaria y Accesorios <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div><div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Vida útil en días de uso efectivo (80 días/año × años). Ej: 5 años = 400 días.</div><div class="tw"><table><thead><tr><th>Equipo/Accesorio</th><th>Valor compra</th><th>Cantidad</th><th>Días uso total</th><th>Dep/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div></div>
   <div class="card"><div class="card-title">📖 Recetas <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRec()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Vaso</th><th>Ingredientes</th><th>Costo</th><th></th></tr></thead><tbody id="cfg-rec"></tbody></table></div></div>
   <div class="card"><div class="card-title">👤 Personal <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRol()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Rol</th><th>Tarifa/día</th><th></th></tr></thead><tbody id="cfg-roles"></tbody></table></div></div>
   <div class="card"><div class="card-title" style="color:var(--red)">⚠️ Zona de peligro</div><button class="btn btn-danger no-print" onclick="resetData()">Borrar todos los datos</button></div>
@@ -742,7 +753,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 <div class="mo" id="mo-ins"><div class="modal"><button class="mc" onclick="closeM('mo-ins')">✕</button>
   <div class="modal-title" id="ins-title">Añadir insumo</div><input type="hidden" id="ins-eid">
   <div class="fr"><div class="fg"><label>Nombre</label><input id="ins-nom" type="text"></div><div class="fg"><label>Categoría</label><select id="ins-cat"><option>Insumo</option><option>Maquinaria</option><option>Elementos</option></select></div></div>
-  <div class="fr"><div class="fg"><label>Unidad base</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por unidad base (COP)</label><input id="ins-costo" type="number" min="0" step="0.01" oninput="calcInsPreview()"></div></div>
+  <div class="fr"><div class="fg"><label>Unidad base</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por <strong>paquete/bolsa</strong> (COP)</label><input id="ins-costo-paq" type="text" inputmode="numeric" oninput="calcInsPreview()" placeholder="Costo del paquete"></div></div>
   <div class="fr"><div class="fg"><label>Nombre del paquete (bolsa, caja...)</label><input id="ins-paqnom" type="text" placeholder="paquete"></div><div class="fg"><label>Unidades base por paquete</label><input id="ins-paqcant" type="number" min="1" value="1" oninput="calcInsPreview()"></div></div>
   <div id="ins-preview" style="font-size:12px;color:var(--sage);margin-bottom:10px"></div>
   <div class="fr"><div class="fg"><label>Stock actual (paquetes)</label><input id="ins-stock" type="number" min="0" step="0.5" value="0"></div><div class="fg"><label>Stock mínimo (paquetes)</label><input id="ins-min" type="number" min="0" step="0.5" value="0"></div></div>
@@ -753,7 +764,11 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 <div class="mo" id="mo-maq"><div class="modal"><button class="mc" onclick="closeM('mo-maq')">✕</button>
   <div class="modal-title">Maquinaria / Equipo</div><input type="hidden" id="maq-eid">
   <div class="fr"><div class="fg"><label>Nombre</label><input id="maq-nom" type="text"></div><div class="fg"><label>Valor compra (COP)</label><input id="maq-val" type="number" oninput="calcDep()"></div></div>
-  <div class="fr"><div class="fg"><label>Días de uso total (80/año × años)</label><input id="maq-vida" type="number" min="1" value="400" oninput="calcDep()"></div><div class="fg"><label>Dep/evento (1 día)</label><input id="maq-dep" readonly style="background:var(--cream);color:var(--muted)"></div></div>
+  <div class="fr3">
+    <div class="fg"><label>Días de uso total (80/año × años)</label><input id="maq-vida" type="number" min="1" value="400" oninput="calcDep()"></div>
+    <div class="fg"><label>Cantidad disponible</label><input id="maq-cant" type="number" min="1" value="1"></div>
+    <div class="fg"><label>Dep/evento (1 día)</label><input id="maq-dep" readonly style="background:var(--cream);color:var(--muted)"></div>
+  </div>
   <div class="btn-group"><button class="btn btn-primary" onclick="guardarMaq()">Guardar</button><button class="btn btn-outline" onclick="closeM('mo-maq')">Cancelar</button></div>
 </div></div>
 
@@ -765,6 +780,9 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
   <div class="fg"><label>Tipo de vaso</label>
     <select id="rec-vaso"><option value="">Sin vaso específico</option><option>Vaso 4oz</option><option>Vaso 6oz</option><option>Vaso 7oz</option><option>Vaso Whisky Plástico</option><option>Taza de porcelana</option><option>Vaso de vidrio</option><option>Sin vaso (taza cliente)</option></select>
   </div>
+  <div class="card-title" style="margin-top:12px">🔧 Maquinaria y accesorios necesarios <button class="btn btn-outline btn-xs" onclick="addMaqRec()">+ Añadir</button></div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:8px">La depreciación de estas máquinas se distribuirá entre las bebidas del menú al cotizar.</div>
+  <div id="rec-maq-lista" style="margin-bottom:10px"></div>
   <div class="card-title" style="margin-top:12px">Ingredientes de la fórmula <button class="btn btn-outline btn-xs" onclick="addIngRec()">+ Ingrediente</button></div>
   <div id="rec-ings-lista" style="margin-bottom:10px"></div>
   <div class="ci" style="margin-top:4px">
@@ -812,9 +830,7 @@ const DEF_BARRAS=[
   {id:'carajillos',icon:'🥂',name:'Barra de Carajillos',desc:'Café con licores. Perfecta para eventos nocturnos.',bebidas:['Carajillo Amaretto','Carajillo Whisky','Espresso Martini']},
   {id:'premium',icon:'⭐',name:'Barra Premium',desc:'Todo en uno: colombiana + italiana + filtrados + carajillos.',bebidas:['Menú completo']},
   {id:'tes',icon:'🍵',name:'Barra de Tés',desc:'Tés naturales e infusiones herbales. Sin cafeína.',bebidas:['Tizana frutal','Té Chai','Infusión jengibre']},
-  {id:'blanca',icon:'🏳️',name:'Barra Blanca',desc:'Multimarca. Cafés de especialidad de distintas regiones.',bebidas:['Cafés de especialidad','Catas dirigidas']},
-  {id:'impresora',icon:'🖨️',name:'Barra con Impresora',desc:'Tu logo impreso en la espuma. El diferenciador definitivo.',bebidas:['Cappuccino con logo','Latte con mensaje']},
-  {id:'personalizada',icon:'✨',name:'Barra Personalizada',desc:'Mezcla bebidas de cualquier tipo según la petición del cliente.',bebidas:[]},
+  {id:'personalizada',icon:'✨',name:'Barra Personalizada',desc:'Arma tu menú a medida. Incluye impresora de arte latte si lo deseas.',bebidas:[],impresora:false},
 ];
 const DEF_INS=[
   {id:'INS001',nombre:'Café Premium Molido',cat:'Insumo',unidad:'gramo',stock:0.8,minimo:0.2,costo:48,paqNom:'paquete',paqCant:2500},
@@ -849,12 +865,19 @@ const DEF_INS=[
   {id:'ELE002',nombre:'Uniforme barista',cat:'Elementos',unidad:'unidad',stock:3,minimo:2,costo:120000,paqNom:'unidad',paqCant:1},
 ];
 const DEF_MAQ=[
-  {id:'M1',nombre:'Máquina espresso',valor:3500000,vidaDias:400},
-  {id:'M2',nombre:'Molino de café',valor:800000,vidaDias:400},
-  {id:'M3',nombre:'Vaporizador de leche',valor:250000,vidaDias:160},
-  {id:'M4',nombre:'Nevera portátil',valor:350000,vidaDias:240},
-  {id:'M5',nombre:'Set utensilios',valor:200000,vidaDias:80},
+  {id:'M1',nombre:'Máquina espresso',valor:3500000,vidaDias:400,cantidad:1},
+  {id:'M2',nombre:'Molino de café',valor:800000,vidaDias:400,cantidad:1},
+  {id:'M3',nombre:'Vaporizador de leche',valor:250000,vidaDias:160,cantidad:1},
+  {id:'M4',nombre:'Nevera portátil',valor:350000,vidaDias:240,cantidad:1},
+  {id:'M5',nombre:'Set utensilios',valor:200000,vidaDias:80,cantidad:1},
+  {id:'M6',nombre:'Impresora arte latte',valor:1800000,vidaDias:240,cantidad:1},
+  {id:'M7',nombre:'Tampers',valor:80000,vidaDias:400,cantidad:2},
+  {id:'M8',nombre:'Pitcher acero',valor:45000,vidaDias:240,cantidad:3},
+  {id:'M9',nombre:'Termómetro',valor:35000,vidaDias:160,cantidad:2},
 ];
+// Costo de tinta impresora: cartucho $350.000 alcanza 750 impresiones
+const IMPRESORA_COSTO_TINTA=350000;
+const IMPRESORA_REND=750;
 // Stock en paquetes; ingredientes por receta
 const DEF_REC=[
   {id:'R01',nombre:'Tinto tradicional',barra:'Colombiana',metodo:'Filtrado simple',rend:'100 ml',vaso:'Vaso 4oz',ingredientes:[{insId:'INS001',cant:8},{insId:'INS022',cant:100}],costo:0},
@@ -902,15 +925,18 @@ function IMG_ANTOJATE(){return S.imgPDF&&S.imgPDF.antojate?S.imgPDF.antojate:'';
 let S={cotizaciones:[],inventario:[],maquinaria:[],recetas:[],roles:[],movimientos:[],eventos:[],barras:[],delicates:[],souvenirs:[],imgPDF:{}};
 let personal_cot=[];
 let barraActiva=null;
+let impresoraIncluida=false;
 let cotVerID=null;
 let evItems=[];
 let evEquipos=[];
 let bebidasSeleccionadas=[];
 let transIncluidoNew=true;
+let baristasForm=[];
 let transIncluidoEdit=true;
 let personalEdit=[];
 let bebidasEdit=[];
 let recIngEditing=[];
+let recMaqEditing=[];
 let recVerID=null;
 let calYear=new Date().getFullYear();
 let calMonth=new Date().getMonth();
@@ -1045,7 +1071,24 @@ function showPage(id){
 // ═══════════════════ BARRAS + BEBIDAS ═══════════════════
 function renderBarras(){
   const barras=S.barras&&S.barras.length?S.barras:DEF_BARRAS;
-  document.getElementById('barra-sel').innerHTML=barras.map(b=>`<div class="bcard ${barraActiva===b.id?'sel':''}" onclick="selBarra('${b.id}')"><div class="ck">✓</div><div class="bi">${b.icon}</div><div class="bn">${b.name}</div><div class="bd">${b.desc}</div></div>`).join('');
+  document.getElementById('barra-sel').innerHTML=barras.map(b=>{
+    const isPersonalizada=b.id==='personalizada';
+    const impresoraActiva=isPersonalizada&&impresoraIncluida;
+    return `<div class="bcard ${barraActiva===b.id?'sel':''}" onclick="selBarra('${b.id}')">
+      <div class="ck">✓</div><div class="bi">${b.icon}</div>
+      <div class="bn">${b.name}</div>
+      <div class="bd">${b.desc}</div>
+      ${isPersonalizada?`<div onclick="event.stopPropagation()" style="margin-top:8px;display:flex;align-items:center;gap:7px;background:rgba(201,151,58,.1);border-radius:6px;padding:5px 8px">
+        <button class="toggle ${impresoraActiva?'on':''}" onclick="event.stopPropagation();toggleImpresora()" style="width:32px;height:18px"></button>
+        <span style="font-size:11px;font-weight:500">Incluir impresora latte</span>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+function toggleImpresora(){
+  impresoraIncluida=!impresoraIncluida;
+  renderBarras();calcCot();
+  toast(impresoraIncluida?'🖨️ Impresora incluida':'Impresora quitada');
 }
 function selBarra(id){
   barraActiva=id;
@@ -1140,6 +1183,17 @@ function toggleTransporte(){
   transIncluidoNew=!transIncluidoNew;
   actualizarToggleTrans();calcCot();
 }
+function addBaristaForm(){
+  const nom=document.getElementById('f-barista-nuevo').value.trim();
+  if(!nom)return;
+  baristasForm.push(nom);
+  document.getElementById('f-barista-nuevo').value='';
+  renderBaristasForm();
+}
+function renderBaristasForm(){
+  const el=document.getElementById('f-baristas-list');if(!el)return;
+  el.innerHTML=baristasForm.map((b,i)=>`<span style="background:var(--cream2);border-radius:20px;padding:3px 10px;font-size:12px;display:flex;align-items:center;gap:5px">${b}<button onclick="baristasForm.splice(${i},1);renderBaristasForm()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px">✕</button></span>`).join('');
+}
 function actualizarToggleTransEdit(){
   const btn=document.getElementById('ec-toggle-trans');
   if(btn) btn.className='toggle'+(transIncluidoEdit?' on':'');
@@ -1152,14 +1206,23 @@ function addAlquiler(){
   renderAlquiler();
 }
 function renderAlquiler(){
-  const el=document.getElementById('alquiler-list');
+  const el=document.getElementById('f-alquiler-list')||document.getElementById('alquiler-list');
+  if(!el){calcCot();return;}
   if(!alquilerItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin equipos alquilados</div>';calcCot();return;}
   el.innerHTML=alquilerItems.map((item,i)=>`
     <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
       <input type="text" placeholder="Ej: Máquina espresso" value="${item.nombre}" oninput="alquilerItems[${i}].nombre=this.value" style="flex:1;font-size:12.5px;padding:7px 10px">
-      <input type="text" inputmode="numeric" placeholder="Valor COP" value="${item.valor?Math.round(item.valor).toLocaleString('es-CO'):''}" oninput="alquilerItems[${i}].valor=+this.value.replace(/\\./g,'').replace(/[^\\d]/g,'');calcCot()" style="width:130px;font-size:12.5px;padding:7px 10px">
+      <div style="position:relative;width:130px">
+        <input type="text" inputmode="numeric" placeholder="Valor COP"
+          value="${item.valor?Math.round(item.valor).toLocaleString('es-CO'):''}"
+          oninput="alquilerItems[${i}].valor=+this.value.replace(/\./g,'').replace(/[^\d]/g,'');this.value=alquilerItems[${i}].valor?alquilerItems[${i}].valor.toLocaleString('es-CO'):'';calcCot()"
+          style="width:100%;font-size:12.5px;padding:7px 10px">
+      </div>
+      <span style="font-size:11px;color:var(--sage);width:80px;text-align:right;font-weight:600">${item.valor?fmt(item.valor):''}</span>
       <button class="btn btn-danger btn-xs" onclick="alquilerItems.splice(${i},1);renderAlquiler()">✕</button>
     </div>`).join('');
+  const total=alquilerItems.reduce((a,x)=>a+(x.valor||0),0);
+  if(total>0) el.innerHTML+=`<div style="text-align:right;font-size:12px;font-weight:600;color:var(--coffee);padding-top:5px;border-top:1px solid var(--cream3)">Total alquiler: ${fmt(total)}</div>`;
   calcCot();
 }
 
@@ -1221,17 +1284,36 @@ function calcCot(){
   const extrasTotal=tAlquiler+tDelicates+tSouvenirs+logistico;
   const cliente=document.getElementById('f-cliente').value||'—';
 
-  // Costo insumos: 1 bebida por persona, usar costo promedio de bebidas seleccionadas
+  // Costo insumos: 1 bebida por persona, usar costo promedio + depreciación máquinas de recetas
   let costoInsBruto=0;
   if(barraActiva&&bebidasSeleccionadas.length>0){
     const costoProm=bebidasSeleccionadas.reduce((a,b)=>a+b.costo,0)/bebidasSeleccionadas.length;
     costoInsBruto=costoProm*personas*dias;
   }
+  // Costo impresora de arte latte
+  let costoImpresora=0;
+  if(impresoraIncluida&&barraActiva==='personalizada'){
+    costoImpresora=Math.ceil((IMPRESORA_COSTO_TINTA/IMPRESORA_REND)*personas)*dias;
+  }
+  costoInsBruto+=costoImpresora;
   const merma=costoInsBruto*0.10;
   const costoIns=costoInsBruto+merma;
 
   const costoPersonal=personal_cot.reduce((a,p)=>a+calcPI(p),0);
-  const depDia=S.maquinaria.reduce((a,m)=>a+(m.valor/Math.max(m.vidaDias,1)),0);
+  // Depreciación: calcular desde máquinas asignadas a las recetas del menú
+  // Máquinas únicas usadas por las bebidas seleccionadas
+  const maqIds=new Set();
+  bebidasSeleccionadas.filter(b=>!b.custom).forEach(bev=>{
+    const rec=S.recetas.find(r=>r.id===bev.id);
+    if(rec&&Array.isArray(rec.maquinas)) rec.maquinas.forEach(rm=>maqIds.add(rm.maqId));
+  });
+  // Si no hay máquinas en recetas, usar todas las de maquinaria
+  let depDia=0;
+  if(maqIds.size>0){
+    maqIds.forEach(mid=>{const m=S.maquinaria.find(x=>x.id===mid);if(m)depDia+=m.valor/Math.max(m.vidaDias,1);});
+  } else {
+    depDia=S.maquinaria.reduce((a,m)=>a+(m.valor/Math.max(m.vidaDias,1)),0);
+  }
   const costoDep=depDia*dias;
   const costoTotal=costoIns+costoPersonal+costoDep+trans+imp+otros;
   const vMargen=costoTotal*margen;
@@ -1249,6 +1331,11 @@ function calcCot(){
   document.getElementById('prev-total').textContent=fmt(precioFinal);
   document.getElementById('prev-pp').textContent=personas>0?fmt(precioFinal/personas)+' por persona':'';
   document.getElementById('ci-insumos').textContent=fmt(costoInsBruto);
+  // Show impresora line in desglose if active
+  const ciImpRow=document.getElementById('ci-impresora-row');
+  if(ciImpRow) ciImpRow.style.display=costoImpresora>0?'flex':'none';
+  const ciImpVal=document.getElementById('ci-impresora');
+  if(ciImpVal) ciImpVal.textContent=fmt(costoImpresora)+' ('+fmtNum(personas)+' imp.)';
   document.getElementById('ci-merma').textContent='+'+fmt(merma)+' (10%)';
   document.getElementById('ci-personal').textContent=fmt(costoPersonal);
   document.getElementById('ci-dep').textContent=fmt(costoDep)+' ('+dias+' día'+(dias>1?'s':'')+')';
@@ -1369,11 +1456,11 @@ function genPDF(c){
     <!-- ENCABEZADO -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
       <div style="flex:1">
+        ${iHojas?`<img src="${iHojas}" style="height:38px;object-fit:contain;display:block;margin-bottom:5px;opacity:0.85">`:''}
         ${iLogo?`<img src="${iLogo}" style="height:60px;object-fit:contain;display:block">`:`<div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#3D1C02">Kirsten Café</div>`}
         <div style="font-size:10px;color:#7A5C46;margin-top:6px;line-height:1.5">Cotización N° <strong style="color:#3D1C02">${c.id}</strong><br>Válida por 15 días</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        ${iHojas?`<img src="${iHojas}" style="height:45px;object-fit:contain;display:block;margin-left:auto;margin-bottom:6px;opacity:0.85">`:''}
         <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center">
           ${iCafecol?`<img src="${iCafecol}" style="height:34px;object-fit:contain" title="Café de Colombia">`:''}
           ${iOrigen?`<img src="${iOrigen}" style="height:34px;object-fit:contain" title="Denominación de Origen">`:''}
@@ -1416,6 +1503,9 @@ function genPDF(c){
         <li>Insumos y empaques de primera calidad</li>
         <li>Montaje y desmontaje de la barra</li>
         ${c.transIncluido&&c.trans>0?'<li>Transporte incluido</li>':''}
+        ${vajilla?`<li>Servicio con ${vajilla}</li>`:''}
+        ${delicates.length?`<li>Delicates: ${delicates.map(d=>d.nombre+' ('+d.cantidad+' und.)').join(', ')}</li>`:''}
+        ${souvenirs.length?`<li>Souvenirs de café: ${souvenirs.map(s=>s.nombre+' ('+s.cantidad+' und.)').join(', ')}</li>`:''}
         ${c.notas?`<li>${c.notas}</li>`:''}
       </ul>
     </div>
@@ -1751,7 +1841,8 @@ function renderCalendario(){
     let evHtml=eventos.map(({cot:c,diaNum,totalDias})=>{
       const clase=c.estado==='Confirmado'?'confirmado':c.estado==='En proceso'?'en-proceso':'completado';
       const label=totalDias>1?`${c.cliente.split(' ')[0]} (${diaNum}/${totalDias})`:c.cliente.split(' ')[0];
-      return `<div class="cal-event ${clase}" onclick="verCot('${c.id}')" title="${c.cliente} — Día ${diaNum} de ${totalDias}">${label}</div>`;
+      const barTip=c.baristas&&c.baristas.length?' | Baristas: '+c.baristas.join(', '):'';
+      return `<div class="cal-event ${clase}" onclick="verCot('${c.id}')" title="${c.cliente} — Día ${diaNum} de ${totalDias}${barTip}">${label}</div>`;
     }).join('');
     html+=`<div class="cal-day ${esHoy?'today':''}"><div class="cal-day-num">${d}</div>${evHtml}</div>`;
   }
@@ -1788,6 +1879,7 @@ function renderRecordatorios(){
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cream2);font-size:13px">
         <div><strong>${c.cliente}</strong>
           <div style="font-size:11.5px;color:var(--muted)">${c.barraName} · ${fmtNum(c.personas)} personas${dias>1?' · '+dias+' días':''}</div>
+          ${c.baristas&&c.baristas.length?`<div style="font-size:11px;color:var(--sage)">👤 ${c.baristas.join(', ')}</div>`:''}
         </div>
         <div style="text-align:right">
           <span class="tag ${tagCls}">${etiqueta}</span>
@@ -1885,13 +1977,13 @@ function evTab(tab){
 }
 function renderEquiposSalida(){
   const el=document.getElementById('ev-equipos-list');
-  const equipo=S.inventario.filter(i=>i.cat==='Maquinaria'||i.cat==='Elementos');
-  if(!equipo.length){el.innerHTML='<div class="empty"><div class="empty-text">No hay equipos en inventario</div></div>';return;}
-  if(!evEquipos.length) evEquipos=equipo.map(e=>({id:e.id,nombre:e.nombre,cat:e.cat,salida:0,retorno:0}));
+  const equipo=S.maquinaria||[];
+  if(!equipo.length){el.innerHTML='<div class="empty"><div class="empty-text">No hay maquinaria en Config → Maquinaria y Accesorios</div></div>';return;}
+  if(!evEquipos.length) evEquipos=equipo.map(e=>({id:e.id,nombre:e.nombre,cat:'Maquinaria',salida:0,retorno:0,disponible:e.cantidad||1}));
   el.innerHTML=evEquipos.map((eq,i)=>`
     <div class="ev-item">
       <div style="flex:1.5"><div style="font-weight:600;font-size:13px">${eq.nombre}</div>
-        <div style="font-size:10.5px;color:var(--muted)">${eq.cat} · Stock: ${fmtNum((S.inventario.find(x=>x.id===eq.id)||{stock:0}).stock)}</div>
+        <div style="font-size:10.5px;color:var(--muted)">${eq.cat} · Disponibles: ${eq.disponible||1}</div>
       </div>
       <div style="text-align:center;width:120px">
         <div style="font-size:9.5px;color:var(--muted);margin-bottom:2px;text-transform:uppercase">Und. que salen</div>
@@ -2008,6 +2100,33 @@ function renderResultado(){
 function calcRent(){const ev=S.eventos[S.eventos.length-1];if(ev){ev.cobrado=+document.getElementById('ev-cobrado').value||0;renderResultado();}}
 function nuevoEvento(){evItems=[];evEquipos=[];document.getElementById('ev-cot-sel').value='';document.getElementById('ev-nombre').value='';document.getElementById('ev-fecha').value='';document.getElementById('ev-cobrado').value='';renderSalida();evTab('salida');toast('Listo para nuevo evento');}
 // ═══════════════════ INVENTARIO ═══════════════════
+function switchInvTab(tab){
+  document.querySelectorAll('#page-inventario .stab').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('#page-inventario .stab')[tab==='insumos'?0:1].classList.add('active');
+  document.getElementById('inv-tab-insumos').style.display=tab==='insumos'?'block':'none';
+  document.getElementById('inv-tab-maquinaria').style.display=tab==='maquinaria'?'block':'none';
+  if(tab==='maquinaria')renderMaqInv();
+  else renderInv();
+}
+function renderMaqInv(){
+  const tb=document.getElementById('tb-maq-inv');if(!tb)return;
+  tb.innerHTML=S.maquinaria.map(m=>{
+    const cant=m.cantidad||1;
+    const dep=m.valor/Math.max(m.vidaDias,1);
+    return `<tr>
+      <td><strong>${m.nombre}</strong></td>
+      <td>${fmt(m.valor)}</td>
+      <td><strong>${cant}</strong> und.</td>
+      <td>${fmtNum(m.vidaDias)} días</td>
+      <td>${fmt(dep)}/evento</td>
+      <td><span class="tag tg">Disponible</span></td>
+      <td><div style="display:flex;gap:3px">
+        <button class="btn btn-outline btn-xs" onclick="editMaq('${m.id}')">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="elimMaq('${m.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
 function renderInv(filtro='todos'){
   const items=filtro==='todos'?S.inventario:S.inventario.filter(i=>i.cat===filtro);
   const alertasIns=S.inventario.filter(i=>i.cat==='Insumo'&&(i.stock||0)<=(i.minimo||0));
@@ -2130,6 +2249,22 @@ function verReceta(id){
 function editRecFromVer(){closeM('mo-rec-ver');if(recVerID)editRec(recVerID);}
 
 // ═══════════════════ CRUD RECETA CON INGREDIENTES ═══════════════════
+function addMaqRec(){
+  if(!S.maquinaria.length){toast('Añade maquinaria en Config');return;}
+  recMaqEditing.push({maqId:S.maquinaria[0].id});
+  renderMaqRec();
+}
+function renderMaqRec(){
+  const el=document.getElementById('rec-maq-lista');if(!el)return;
+  if(!recMaqEditing.length){el.innerHTML='<div style="color:var(--muted2);font-size:12px;padding:4px">Sin maquinaria asignada.</div>';return;}
+  el.innerHTML=recMaqEditing.map((rm,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cream2)">
+      <select style="flex:1;font-size:12px" onchange="recMaqEditing[${i}].maqId=this.value">
+        ${S.maquinaria.map(m=>`<option value="${m.id}" ${m.id===rm.maqId?'selected':''}>${m.nombre} (dep: ${fmt(m.valor/Math.max(m.vidaDias,1))}/evento)</option>`).join('')}
+      </select>
+      <button class="btn btn-danger btn-xs" onclick="recMaqEditing.splice(${i},1);renderMaqRec()">✕</button>
+    </div>`).join('');
+}
 function abrirAddRec(){
   document.getElementById('rec-title').textContent='Nueva bebida';
   document.getElementById('rec-eid').value='';
@@ -2137,8 +2272,8 @@ function abrirAddRec(){
   document.getElementById('rec-met').value='';
   document.getElementById('rec-rend').value='';
   document.getElementById('rec-vaso').value='';
-  recIngEditing=[];
-  renderIngRec();
+  recIngEditing=[];recMaqEditing=[];
+  renderIngRec();renderMaqRec();
   openM('mo-rec');
 }
 function editRec(id){
@@ -2151,7 +2286,8 @@ function editRec(id){
   document.getElementById('rec-rend').value=r.rend||'';
   document.getElementById('rec-vaso').value=r.vaso||'';
   recIngEditing=Array.isArray(r.ingredientes)?JSON.parse(JSON.stringify(r.ingredientes)):[];
-  renderIngRec();
+  recMaqEditing=Array.isArray(r.maquinas)?JSON.parse(JSON.stringify(r.maquinas)):[];
+  renderIngRec();renderMaqRec();
   openM('mo-rec');
 }
 function addIngRec(){
@@ -2187,7 +2323,7 @@ function guardarRec(){
   const nom=document.getElementById('rec-nom').value.trim();
   if(!nom){toast('Ingresa el nombre');return;}
   const costo=calcCostoRec();
-  const data={nombre:nom,barra:document.getElementById('rec-barra').value,metodo:document.getElementById('rec-met').value,rend:document.getElementById('rec-rend').value,vaso:document.getElementById('rec-vaso').value,ingredientes:JSON.parse(JSON.stringify(recIngEditing)),costo};
+  const data={nombre:nom,barra:document.getElementById('rec-barra').value,metodo:document.getElementById('rec-met').value,rend:document.getElementById('rec-rend').value,vaso:document.getElementById('rec-vaso').value,ingredientes:JSON.parse(JSON.stringify(recIngEditing)),maquinas:JSON.parse(JSON.stringify(recMaqEditing)),costo};
   if(eid){const r=S.recetas.find(x=>x.id===eid);if(r)Object.assign(r,data);}
   else S.recetas.push({id:'R'+uid(),...data});
   saveS();closeM('mo-rec');renderRec();renderCfg();toast('Receta guardada');
@@ -2196,10 +2332,14 @@ function elimRec(id){if(!confirm('¿Eliminar?'))return;S.recetas=S.recetas.filte
 
 // ═══════════════════ CRUD INSUMOS ═══════════════════
 function calcInsPreview(){
-  const costo=+document.getElementById('ins-costo').value||0;
+  const costoPaq=moneyVal('ins-costo-paq');
   const pc=+document.getElementById('ins-paqcant').value||1;
   const pn=document.getElementById('ins-paqnom').value||'paquete';
-  document.getElementById('ins-preview').textContent=pc>1?`1 ${pn} = ${fmtNum(pc)} unidades base · Costo/${pn}: ${fmt(costo*pc)}`:'';
+  const costoUnit=pc>0?costoPaq/pc:0;
+  const prev=document.getElementById('ins-preview');
+  if(prev) prev.innerHTML=costoPaq>0
+    ?`<span style="color:var(--sage)">1 ${pn} = ${fmt(costoPaq)} · Costo/unidad base: <strong>${fmt(costoUnit)}</strong></span>`
+    :'';
 }
 function abrirAddIns(){document.getElementById('ins-title').textContent='Añadir insumo';document.getElementById('ins-eid').value='';document.getElementById('ins-nom').value='';document.getElementById('ins-cat').value='Insumo';document.getElementById('ins-uni').value='unidad';document.getElementById('ins-costo').value='';document.getElementById('ins-paqnom').value='paquete';document.getElementById('ins-paqcant').value='1';document.getElementById('ins-preview').textContent='';document.getElementById('ins-stock').value='0';document.getElementById('ins-min').value='0';openM('mo-ins');}
 function editIns(id){
@@ -2207,13 +2347,16 @@ function editIns(id){
   document.getElementById('ins-title').textContent='Editar: '+item.nombre;
   document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=item.nombre;
   document.getElementById('ins-cat').value=item.cat;document.getElementById('ins-uni').value=item.unidad;
-  setMoneyVal('ins-costo',item.costo);document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
+  setMoneyVal('ins-costo-paq',(item.costoPaq||item.costo*(item.paqCant||1)));document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
   document.getElementById('ins-paqcant').value=item.paqCant||1;document.getElementById('ins-stock').value=item.stock||0;
   document.getElementById('ins-min').value=item.minimo||0;calcInsPreview();openM('mo-ins');
 }
 function guardarIns(){
   const eid=document.getElementById('ins-eid').value;const nom=document.getElementById('ins-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}
-  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:moneyVal('ins-costo')||+document.getElementById('ins-costo').value.replace(/\./g,'')||0,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
+  const costoPaqIns=moneyVal('ins-costo-paq');
+  const paqCantIns=+document.getElementById('ins-paqcant').value||1;
+  const costoUnitIns=paqCantIns>0?costoPaqIns/paqCantIns:0;
+  const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:costoUnitIns,costoPaq:costoPaqIns,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
   if(eid){const i=S.inventario.find(x=>x.id===eid);if(i)Object.assign(i,data);}
   else S.inventario.push({id:'INS'+uid(),...data});
   recalcularCostosRecetas();saveS();closeM('mo-ins');renderCfg();renderInv();toast('Insumo guardado');
@@ -2223,8 +2366,8 @@ function elimIns(id){if(!confirm('¿Eliminar?'))return;S.inventario=S.inventario
 // CRUD Maquinaria
 function calcDep(){const v=moneyVal('maq-val');const d=+document.getElementById('maq-vida').value||1;document.getElementById('maq-dep').value=fmt(v/d)+'/evento';}
 function abrirAddMaq(){document.getElementById('maq-eid').value='';document.getElementById('maq-nom').value='';document.getElementById('maq-val').value='';document.getElementById('maq-vida').value='400';document.getElementById('maq-dep').value='';openM('mo-maq');}
-function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;setMoneyVal('maq-val',m.valor);document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/evento';openM('mo-maq');}
-function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=moneyVal('maq-val');const vida=+document.getElementById('maq-vida').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
+function editMaq(id){const m=S.maquinaria.find(x=>x.id===id);if(!m)return;document.getElementById('maq-eid').value=id;document.getElementById('maq-nom').value=m.nombre;setMoneyVal('maq-val',m.valor);document.getElementById('maq-vida').value=m.vidaDias;document.getElementById('maq-cant').value=m.cantidad||1;document.getElementById('maq-dep').value=fmt(m.valor/Math.max(m.vidaDias,1))+'/evento';openM('mo-maq');}
+function guardarMaq(){const eid=document.getElementById('maq-eid').value;const nom=document.getElementById('maq-nom').value.trim();const val=moneyVal('maq-val');const vida=+document.getElementById('maq-vida').value||1;const cant=+document.getElementById('maq-cant').value||1;if(!nom){toast('Ingresa el nombre');return;}if(eid){const m=S.maquinaria.find(x=>x.id===eid);if(m){m.nombre=nom;m.valor=val;m.vidaDias=vida;m.cantidad=cant;}}else S.maquinaria.push({id:'M'+uid(),nombre:nom,valor:val,vidaDias:vida,cantidad:cant});saveS();closeM('mo-maq');renderCfg();toast('Equipo guardado');}
 function elimMaq(id){if(!confirm('¿Eliminar?'))return;S.maquinaria=S.maquinaria.filter(m=>m.id!==id);saveS();renderCfg();toast('Eliminado');}
 
 // CRUD Roles
@@ -2282,7 +2425,7 @@ function guardarEditBarra(){
 const IMG_DEFS=[
   {key:'logo',label:'Logo horizontal (encabezado)',desc:'Título arriba a la izquierda',w:200,h:70},
   {key:'marca',label:'Logo circular (marca de agua)',desc:'Centro del documento, 8% opacidad',w:120,h:120},
-  {key:'hojas',label:'Decoración hojas doradas',desc:'Esquina superior derecha',w:160,h:60},
+  {key:'hojas',label:'Decoración hojas doradas',desc:'Esquina superior izquierda',w:160,h:60},
   {key:'footer',label:'Banner footer',desc:'Pie de página con contacto',w:560,h:60},
   {key:'cafecol',label:'Café de Colombia',desc:'Sello de acreditación',w:60,h:60},
   {key:'origen',label:'Denominación de Origen',desc:'Sello de acreditación',w:60,h:60},
@@ -2346,7 +2489,7 @@ function renderCfg(){
   }).join('');
   renderImagenesCfg();
   document.getElementById('cfg-ins').innerHTML=S.inventario.map(i=>`<tr><td><span class="tag tgray" style="font-size:9.5px">${i.id}</span></td><td>${i.nombre}</td><td>${i.cat}</td><td>${i.paqNom||'und'}</td><td>${fmtNum(i.paqCant||1)}</td><td>${fmtNum(i.stock||0)}</td><td>${fmtNum(i.minimo||0)}</td><td>${fmt(i.costo)}</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editIns('${i.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimIns('${i.id}')">✕</button></div></td></tr>`).join('');
-  document.getElementById('cfg-maq').innerHTML=S.maquinaria.map(m=>`<tr><td>${m.nombre}</td><td>${fmt(m.valor)}</td><td>${fmtNum(m.vidaDias)} días</td><td>${fmt(m.valor/Math.max(m.vidaDias,1))}/evento</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editMaq('${m.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimMaq('${m.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('cfg-maq').innerHTML=S.maquinaria.map(m=>`<tr><td>${m.nombre}</td><td>${fmt(m.valor)}</td><td><strong>${m.cantidad||1}</strong></td><td>${fmtNum(m.vidaDias)} días</td><td>${fmt(m.valor/Math.max(m.vidaDias,1))}/evento</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editMaq('${m.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimMaq('${m.id}')">✕</button></div></td></tr>`).join('');
   document.getElementById('cfg-rec').innerHTML=S.recetas.map(r=>`<tr><td>${r.nombre}</td><td><span class="tag tgold">${r.barra}</span></td><td style="font-size:11.5px">${r.vaso||'—'}</td><td style="font-size:11px;color:var(--muted)">${Array.isArray(r.ingredientes)&&r.ingredientes.length?r.ingredientes.length+' ingredientes':'Sin fórmula'}</td><td>${fmt(r.costo)}</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editRec('${r.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimRec('${r.id}')">✕</button></div></td></tr>`).join('');
   document.getElementById('cfg-roles').innerHTML=S.roles.map(r=>`<tr><td>${r.nombre}</td><td>${fmt(r.tarifa)}/día</td><td><div style="display:flex;gap:3px"><button class="btn btn-outline btn-xs" onclick="editRol('${r.id}')">✏️</button><button class="btn btn-danger btn-xs" onclick="elimRol('${r.id}')">✕</button></div></td></tr>`).join('');
   const fbDot=document.getElementById('fb-dot');const fbTxt=document.getElementById('fb-status-text');
