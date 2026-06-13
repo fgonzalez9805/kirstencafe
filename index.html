@@ -682,7 +682,12 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
   <div class="card"><div class="card-title">🔧 Maquinaria y Accesorios <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div><div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Vida útil en días de uso efectivo (80 días/año × años). Ej: 5 años = 400 días.</div><div class="tw"><table><thead><tr><th>Equipo/Accesorio</th><th>Valor compra</th><th>Cantidad</th><th>Días uso total</th><th>Dep/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div></div>
   <div class="card"><div class="card-title">📖 Recetas <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRec()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Vaso</th><th>Ingredientes</th><th>Costo</th><th></th></tr></thead><tbody id="cfg-rec"></tbody></table></div></div>
   <div class="card"><div class="card-title">👤 Personal <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRol()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Rol</th><th>Tarifa/día</th><th></th></tr></thead><tbody id="cfg-roles"></tbody></table></div></div>
-  <div class="card"><div class="card-title" style="color:var(--red)">⚠️ Zona de peligro</div><button class="btn btn-danger no-print" onclick="resetData()">Borrar todos los datos</button></div>
+  <div class="card" style="border-color:var(--red)">
+    <div class="card-title" style="color:var(--red)">🔧 Reparar datos</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Si aparecen barras antiguas (Blanca, Impresora), usa este botón para limpiarlas permanentemente de Firebase.</p>
+    <button class="btn btn-danger no-print" onclick="limpiarBarrasObsoletas()">🗑 Eliminar barras Blanca e Impresora</button>
+  </div>
+  <div class="card" style="border-color:var(--red)"><div class="card-title" style="color:var(--red)">⚠️ Zona de peligro</div><button class="btn btn-danger no-print" onclick="resetData()">Borrar todos los datos</button></div>
 </div>
 <!-- MODALES -->
 <div class="mo" id="mo-pdf"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-pdf')">✕</button><div id="pdf-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button><button class="btn btn-outline" onclick="closeM('mo-pdf')">Cerrar</button></div></div></div>
@@ -2706,6 +2711,14 @@ function exportarCSV(){if(!S.cotizaciones.length){toast('No hay cotizaciones');r
 function exportarInvCSV(){dlCSV([['ID','Ítem','Cat','Paquete','U.base/paq','Stock(paq)','Mín(paq)','Costo/u','Estado'],...S.inventario.map(i=>[i.id,i.nombre,i.cat,i.paqNom||'und',i.paqCant||1,i.stock||0,i.minimo||0,i.costo,(i.stock||0)<=(i.minimo||0)?'REPONER':'OK'])],'kirsten-inventario.csv');}
 function dlCSV(data,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+data.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href);toast('CSV exportado');}
 
+function limpiarBarrasObsoletas(){
+  const antes=S.barras?S.barras.length:0;
+  S.barras=DEF_BARRAS.map(b=>JSON.parse(JSON.stringify(b)));
+  saveS();
+  renderBarras();
+  renderCfg();
+  toast('✅ Barras actualizadas: '+S.barras.length+' barras (antes '+antes+')');
+}
 function resetData(){if(!confirm('⚠️ Borrar TODOS los datos. ¿Continuar?'))return;if(!confirm('Segunda confirmación: ¿segura?'))return;localStorage.removeItem('kc_v4');S={cotizaciones:[],inventario:JSON.parse(JSON.stringify(DEF_INS)),maquinaria:JSON.parse(JSON.stringify(DEF_MAQ)),recetas:JSON.parse(JSON.stringify(DEF_REC)),roles:JSON.parse(JSON.stringify(DEF_ROLES)),movimientos:[],eventos:[],barras:JSON.parse(JSON.stringify(DEF_BARRAS))};recalcularCostosRecetas();saveS();renderAll();toast('✅ Datos restaurados');}
 function renderAll(){renderDash();renderCots();renderInv();renderRec();renderMovs();renderCfg();window._S=S;window._renderAll=renderAll;}
 
