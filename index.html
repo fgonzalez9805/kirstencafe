@@ -407,7 +407,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
             <div style="font-size:11.5px;font-weight:600;color:var(--coffee);margin-bottom:6px">+ Bebida personalizada</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <input id="beb-custom-nom" type="text" placeholder="Nombre de la bebida" style="flex:1;min-width:140px">
-              <input id="beb-custom-costo" type="number" placeholder="Costo COP" style="width:110px" min="0">
+              <input id="beb-custom-costo" type="number" placeholder="Costo/unidad COP" style="width:130px" min="0" title="Costo por unidad (lo que cuesta preparar 1 bebida)">
               <button class="btn btn-outline btn-sm" onclick="addBebidaCustom()">+ Añadir</button>
             </div>
           </div>
@@ -469,9 +469,16 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
         <div class="card-title">Lista de compras estimada</div>
         <div id="lista-preview"><div class="empty" style="padding:14px"><div class="empty-text" style="font-size:12px">Selecciona una barra</div></div></div>
       </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="font-size:12px">📊 Desglose detallado (borrador)
+          <button class="btn btn-outline btn-xs" onclick="toggleDesgloseBorrador()">Mostrar/Ocultar</button>
+        </div>
+        <div id="desglose-borrador" style="display:none;font-size:11.5px"></div>
+      </div>
       <div class="btn-group no-print">
         <button class="btn btn-primary" onclick="guardarCot()">💾 Guardar</button>
         <button class="btn btn-outline" onclick="verPDF()">👁 Ver PDF</button>
+        <button class="btn btn-outline" onclick="verDesgloseDetallado()">📊 Ver desglose</button>
       </div>
     </div>
   </div>
@@ -511,7 +518,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
       </div>
     </div>
     <div class="g3" style="margin-bottom:14px" id="stats-completadas"></div>
-    <div class="card"><div class="tw"><table><thead><tr><th>#</th><th>Cliente</th><th>Barra</th><th>Fecha</th><th>Personas</th><th>Costo real</th><th>Facturado</th><th>Utilidad</th><th>Margen</th></tr></thead><tbody id="tb-completadas"></tbody></table></div></div>
+    <div class="card"><div class="tw"><table><thead><tr><th>#</th><th>Cliente</th><th>Barra</th><th>Fecha</th><th>Personas</th><th>Costo real</th><th>Facturado</th><th>Utilidad</th><th>Margen</th><th></th></tr></thead><tbody id="tb-completadas"></tbody></table></div></div>
   </div>
 </div>
 
@@ -682,11 +689,6 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
   <div class="card"><div class="card-title">🔧 Maquinaria y Accesorios <button class="btn btn-outline btn-sm no-print" onclick="abrirAddMaq()">+ Añadir</button></div><div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Vida útil en días de uso efectivo (80 días/año × años). Ej: 5 años = 400 días.</div><div class="tw"><table><thead><tr><th>Equipo/Accesorio</th><th>Valor compra</th><th>Cantidad</th><th>Días uso total</th><th>Dep/evento</th><th></th></tr></thead><tbody id="cfg-maq"></tbody></table></div></div>
   <div class="card"><div class="card-title">📖 Recetas <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRec()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Bebida</th><th>Barra</th><th>Vaso</th><th>Ingredientes</th><th>Costo</th><th></th></tr></thead><tbody id="cfg-rec"></tbody></table></div></div>
   <div class="card"><div class="card-title">👤 Personal <button class="btn btn-outline btn-sm no-print" onclick="abrirAddRol()">+ Añadir</button></div><div class="tw"><table><thead><tr><th>Rol</th><th>Tarifa/día</th><th></th></tr></thead><tbody id="cfg-roles"></tbody></table></div></div>
-  <div class="card" style="border-color:var(--red)">
-    <div class="card-title" style="color:var(--red)">🔧 Reparar datos</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Si aparecen barras antiguas (Blanca, Impresora), usa este botón para limpiarlas permanentemente de Firebase.</p>
-    <button class="btn btn-danger no-print" onclick="limpiarBarrasObsoletas()">🗑 Eliminar barras Blanca e Impresora</button>
-  </div>
   <div class="card" style="border-color:var(--red)"><div class="card-title" style="color:var(--red)">⚠️ Zona de peligro</div><button class="btn btn-danger no-print" onclick="resetData()">Borrar todos los datos</button></div>
 </div>
 <!-- MODALES -->
@@ -1419,6 +1421,192 @@ function calcCot(){
   return {personas,horas,dias,costoInsBruto,merma,costoIns,costoPersonal,costoDep,trans,transIncluido:transIncluidoNew,imp,otros,logistico,tAlquiler,tDelicates,tSouvenirs,extrasTotal,costoTotal,margen,vMargen,desc,vDesc,iva,vIva,precioFinal};
 }
 
+function toggleDesgloseBorrador(){
+  const el=document.getElementById('desglose-borrador');
+  if(!el)return;
+  if(el.style.display==='none'){el.style.display='block';actualizarDesgloseBorrador();}
+  else el.style.display='none';
+}
+function actualizarDesgloseBorrador(){
+  const el=document.getElementById('desglose-borrador');
+  if(!el||el.style.display==='none')return;
+  const n=calcCot();
+  const personas=+document.getElementById('f-personas').value||0;
+  const dias=+document.getElementById('f-dias').value||1;
+  const prom=bebidasSeleccionadas.length>0?bebidasSeleccionadas.reduce((a,b)=>a+b.costo,0)/bebidasSeleccionadas.length:0;
+  let html='<div style="border-top:1px solid var(--cream3);padding-top:8px">';
+  
+  // Bebidas
+  html+=`<div style="font-weight:700;color:var(--coffee);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">☕ Insumos / Bebidas</div>`;
+  if(bebidasSeleccionadas.length){
+    bebidasSeleccionadas.forEach(b=>{
+      html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:var(--cream);border-radius:4px;margin-bottom:2px">
+        <span>${b.nombre}</span><span style="color:var(--muted)">${fmt(b.costo)}/prep</span></div>`;
+    });
+    html+=`<div style="display:flex;justify-content:space-between;padding:3px 6px;font-weight:600;border-top:1px dashed var(--cream3);margin-top:3px">
+      <span>Promedio × ${fmtNum(personas)} pax × ${dias}d</span><span>${fmt(prom*personas*dias)}</span></div>`;
+    html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;color:var(--muted)">
+      <span>+ Merma 10%</span><span>${fmt(n.merma)}</span></div>`;
+  }
+  if(impresoraIncluida){
+    const cImp=Math.ceil((IMPRESORA_COSTO_TINTA/IMPRESORA_REND)*personas)*dias;
+    html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;color:var(--blue)">
+      <span>🖨️ Tinta impresora (${fmtNum(personas)} imp.)</span><span>${fmt(cImp)}</span></div>`;
+  }
+
+  // Personal
+  if(personal_cot.length){
+    html+=`<div style="font-weight:700;color:var(--coffee);margin:8px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">👤 Personal</div>`;
+    personal_cot.forEach(p=>{
+      const r=S.roles.find(x=>x.id===p.rolId);
+      if(r) html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:var(--cream);border-radius:4px;margin-bottom:2px">
+        <span>${r.nombre} × ${p.dias||1} día(s)</span><span>${fmt(r.tarifa*(p.dias||1))}</span></div>`;
+    });
+  }
+
+  // Depreciación
+  html+=`<div style="display:flex;justify-content:space-between;padding:3px 6px;margin-top:4px">
+    <span style="font-weight:600">🔧 Depreciación equipos (${dias}d)</span><span>${fmt(n.costoDep)}</span></div>`;
+
+  // Transporte
+  if(transIncluidoNew&&n.trans>0){
+    html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:var(--cream);border-radius:4px;margin-bottom:2px">
+      <span>🚗 Transporte</span><span>${fmt(n.trans)}</span></div>`;
+  }
+
+  // Imprevistos/otros
+  if(n.imp>0||n.otros>0){
+    html+=`<div style="font-weight:700;color:var(--coffee);margin:8px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">⚙️ Operativos</div>`;
+    if(n.imp>0) html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:var(--cream);border-radius:4px;margin-bottom:2px"><span>Imprevistos</span><span>${fmt(n.imp)}</span></div>`;
+    if(n.otros>0) html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:var(--cream);border-radius:4px;margin-bottom:2px"><span>Otros</span><span>${fmt(n.otros)}</span></div>`;
+  }
+
+  // Alquiler
+  if(alquilerItems&&alquilerItems.length){
+    html+=`<div style="font-weight:700;color:var(--coffee);margin:8px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🏭 Alquiler de equipos externos</div>`;
+    alquilerItems.forEach(a=>{
+      html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:#f0f4ff;border-radius:4px;margin-bottom:2px">
+        <span>${a.nombre||'Sin nombre'} (1 und.)</span><span>${fmt(a.valor||0)}</span></div>`;
+    });
+    html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;font-weight:600"><span>Subtotal alquiler</span><span>${fmt(alquilerItems.reduce((a,x)=>a+(x.valor||0),0))}</span></div>`;
+  }
+
+  // Delicates
+  if(delicateItems&&delicateItems.length){
+    html+=`<div style="font-weight:700;color:var(--coffee);margin:8px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🧁 Delicates</div>`;
+    delicateItems.forEach(d=>{
+      const total=(d.cantidad||0)*(d.precioUnit||0);
+      html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:#fff8f0;border-radius:4px;margin-bottom:2px">
+        <span>${d.nombre||'Sin nombre'} (${fmtNum(d.cantidad||0)} und. × ${fmt(d.precioUnit||0)}/und)</span><span>${fmt(total)}</span></div>`;
+    });
+    html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;font-weight:600"><span>Subtotal delicates</span><span>${fmt(delicateItems.reduce((a,x)=>a+(x.cantidad||0)*(x.precioUnit||0),0))}</span></div>`;
+  }
+
+  // Souvenirs
+  if(souvenirItems&&souvenirItems.length){
+    html+=`<div style="font-weight:700;color:var(--coffee);margin:8px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">☕ Souvenirs de café</div>`;
+    souvenirItems.forEach(s=>{
+      const total=(s.cantidad||0)*(s.precioUnit||0);
+      html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;background:#f0fff4;border-radius:4px;margin-bottom:2px">
+        <span>${s.nombre||'Sin nombre'} (${fmtNum(s.cantidad||0)} und. × ${fmt(s.precioUnit||0)}/und)</span><span>${fmt(total)}</span></div>`;
+    });
+    html+=`<div style="display:flex;justify-content:space-between;padding:2px 6px;font-weight:600"><span>Subtotal souvenirs</span><span>${fmt(souvenirItems.reduce((a,x)=>a+(x.cantidad||0)*(x.precioUnit||0),0))}</span></div>`;
+  }
+
+  // Logístico
+  const logistico=moneyVal('f-logistico')||0;
+  if(logistico>0){
+    html+=`<div style="display:flex;justify-content:space-between;padding:3px 6px;background:var(--cream);border-radius:4px;margin-top:4px">
+      <span>🚛 Valor logístico</span><span>${fmt(logistico)}</span></div>`;
+  }
+
+  // Totales
+  html+=`<div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--gold)">
+    <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:3px"><span>Costo operativo total</span><span>${fmt(n.costoTotal)}</span></div>
+    <div style="display:flex;justify-content:space-between;color:var(--sage);margin-bottom:3px"><span>+ Margen (${Math.round((+document.getElementById('f-margen').value||0))}%)</span><span>+${fmt(n.vMargen)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--coffee);border-top:1px solid var(--cream3);padding-top:6px;margin-top:4px">
+      <span>PRECIO FINAL</span><span>${fmt(n.precioFinal)}</span></div>
+    <div style="text-align:right;font-size:10.5px;color:var(--muted);margin-top:2px">${personas>0?fmt(n.precioFinal/personas)+' por persona':''}</div>
+  </div></div>`;
+  el.innerHTML=html;
+}
+function verDesgloseDetallado(){
+  // Open full desglose in new window for borrador
+  if(!barraActiva){toast('Selecciona una barra primero');return;}
+  const n=calcCot();
+  const b=(S.barras||DEF_BARRAS).find(x=>x.id===barraActiva)||{};
+  const tmp={
+    id:'BORRADOR',cliente:document.getElementById('f-cliente').value||'Cliente',
+    barraId:barraActiva,barraName:b.name||'Barra',
+    fecha:document.getElementById('f-fecha').value,
+    personas:+document.getElementById('f-personas').value||0,
+    dias:+document.getElementById('f-dias').value||1,
+    ...n,bebidas:bebidasSeleccionadas,
+    personal:JSON.parse(JSON.stringify(personal_cot)),
+    alquiler:JSON.parse(JSON.stringify(alquilerItems||[])),
+    delicates:JSON.parse(JSON.stringify(delicateItems||[])),
+    souvenirs:JSON.parse(JSON.stringify(souvenirItems||[])),
+    logistico:moneyVal('f-logistico')||0,
+    transIncluido:transIncluidoNew,
+  };
+  // Use cotVerID trick to open descargarDesglose
+  const win=window.open('','_blank','width=750,height=950');
+  if(!win){toast('Activa popups para ver el desglose');return;}
+  const c=tmp;
+  const alquiler=c.alquiler||[];const delicates=c.delicates||[];const souvenirs=c.souvenirs||[];const logistico=c.logistico||0;
+  const rows=(items,colorHex)=>items.map(it=>`<tr style="background:${colorHex}"><td>${it.nombre||'—'}</td><td style="text-align:right">${it.cantidad?fmtNum(it.cantidad):''}</td><td style="text-align:right">${it.precioUnit?fmt(it.precioUnit):it.valor?fmt(it.valor):''}</td><td style="text-align:right;font-weight:600">${fmt((it.cantidad||1)*(it.precioUnit||it.valor||0))}</td></tr>`).join('');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Desglose Borrador</title>
+  <style>body{font-family:'Segoe UI',sans-serif;margin:24px;color:#2C1A0E;font-size:13px}
+  h1{font-size:18px;color:#3D1C02;margin-bottom:4px}h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#7A5C46;margin:16px 0 6px;border-bottom:1px solid #E8DDD0;padding-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-bottom:6px}th{background:#3D1C02;color:#F2EBE0;padding:6px 10px;font-size:11px;text-align:left}
+  td{padding:5px 10px;border-bottom:1px solid #F2EBE0}.total-row td{font-weight:700;font-size:14px;border-top:2px solid #C9973A;background:#fffbf2}
+  .section{background:#F9F5EF}.badge{display:inline-block;background:#fff3cd;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;color:#856404}
+  @media print{button{display:none}}</style></head><body>
+  <h1>📊 Desglose Detallado — BORRADOR <span class="badge">No guardado</span></h1>
+  <div style="font-size:12px;color:#7A5C46;margin-bottom:16px">${c.cliente} · ${c.barraName} · ${c.fecha||'Sin fecha'} · ${fmtNum(c.personas)} personas · ${c.dias} día(s)</div>
+
+  <h2>☕ Insumos / Bebidas</h2>
+  <table><thead><tr><th>Bebida</th><th style="text-align:right">Costo/prep</th><th></th><th style="text-align:right">Subtotal (×${fmtNum(c.personas)} pax ×${c.dias}d)</th></tr></thead><tbody>
+  ${bebidasSeleccionadas.map(bev=>`<tr class="section"><td>${bev.nombre}${bev.custom?' ✨':''}</td><td style="text-align:right">${fmt(bev.costo)}</td><td></td><td style="text-align:right">${fmt(bev.costo*c.personas*c.dias)}</td></tr>`).join('')}
+  <tr><td colspan="3" style="font-weight:600">Promedio × personas × días</td><td style="text-align:right;font-weight:600">${fmt(c.costoInsBruto-c.merma)}</td></tr>
+  <tr class="section"><td colspan="3">+ Merma 10%</td><td style="text-align:right">+${fmt(c.merma)}</td></tr>
+  ${impresoraIncluida?`<tr class="section" style="color:#1a4fa0"><td colspan="3">🖨️ Tinta impresora (${fmtNum(c.personas)} impresiones)</td><td style="text-align:right">${fmt(Math.ceil((IMPRESORA_COSTO_TINTA/IMPRESORA_REND)*c.personas)*c.dias)}</td></tr>`:''}
+  </tbody></table>
+
+  ${personal_cot.length?`<h2>👤 Personal</h2><table><thead><tr><th>Rol</th><th style="text-align:right">Tarifa/día</th><th style="text-align:right">Días</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
+  ${personal_cot.map(p=>{const r=S.roles.find(x=>x.id===p.rolId)||{};return `<tr class="section"><td>${r.nombre||'—'}</td><td style="text-align:right">${fmt(r.tarifa||0)}</td><td style="text-align:right">${p.dias||1}</td><td style="text-align:right;font-weight:600">${fmt((r.tarifa||0)*(p.dias||1))}</td></tr>`;}).join('')}
+  </tbody></table>`:''}
+
+  <h2>🔧 Depreciación maquinaria (${c.dias} día(s))</h2>
+  <table><thead><tr><th>Equipo</th><th style="text-align:right">Valor compra</th><th style="text-align:right">Días útiles</th><th style="text-align:right">Dep/evento</th></tr></thead><tbody>
+  ${S.maquinaria.map(m=>`<tr class="section"><td>${m.nombre}</td><td style="text-align:right">${fmt(m.valor)}</td><td style="text-align:right">${fmtNum(m.vidaDias)}</td><td style="text-align:right">${fmt((m.valor/Math.max(m.vidaDias,1))*c.dias)}</td></tr>`).join('')}
+  <tr><td colspan="3" style="font-weight:600">Total depreciación</td><td style="text-align:right;font-weight:600">${fmt(c.costoDep)}</td></tr>
+  </tbody></table>
+
+  ${c.transIncluido&&c.trans>0?`<h2>🚗 Transporte</h2><table><tbody><tr class="section"><td>Transporte incluido en cotización</td><td></td><td></td><td style="text-align:right">${fmt(c.trans)}</td></tr></tbody></table>`:''}
+
+  ${alquiler.length?`<h2>🏭 Alquiler de equipos externos</h2><table><thead><tr><th>Equipo</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows(alquiler,'#f0f4ff')}<tr><td colspan="3" style="font-weight:600">Subtotal alquiler</td><td style="text-align:right;font-weight:600">${fmt(alquiler.reduce((a,x)=>a+(x.valor||0),0))}</td></tr></tbody></table>`:''}
+
+  ${delicates.length?`<h2>🧁 Delicates</h2><table><thead><tr><th>Producto</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio/und</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows(delicates,'#fff8f0')}<tr><td colspan="3" style="font-weight:600">Subtotal delicates</td><td style="text-align:right;font-weight:600">${fmt(delicates.reduce((a,x)=>a+(x.cantidad||0)*(x.precioUnit||0),0))}</td></tr></tbody></table>`:''}
+
+  ${souvenirs.length?`<h2>☕ Souvenirs de café</h2><table><thead><tr><th>Souvenir</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio/und</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows(souvenirs,'#f0fff4')}<tr><td colspan="3" style="font-weight:600">Subtotal souvenirs</td><td style="text-align:right;font-weight:600">${fmt(souvenirs.reduce((a,x)=>a+(x.cantidad||0)*(x.precioUnit||0),0))}</td></tr></tbody></table>`:''}
+
+  ${logistico>0?`<h2>🚛 Valor logístico</h2><table><tbody><tr class="section"><td colspan="3">Checklist, cierre y actividades logísticas</td><td style="text-align:right">${fmt(logistico)}</td></tr></tbody></table>`:''}
+
+  <h2>💰 Resumen financiero</h2>
+  <table><tbody>
+    <tr class="section"><td colspan="3">Costo operativo total</td><td style="text-align:right"><strong>${fmt(c.costoTotal)}</strong></td></tr>
+    <tr class="section"><td colspan="3">Margen (${Math.round((c.margen||0)*100)}%)</td><td style="text-align:right">+${fmt(c.vMargen||0)}</td></tr>
+    ${(c.desc||0)>0?`<tr class="section"><td colspan="3">Descuento (${Math.round((c.desc||0)*100)}%)</td><td style="text-align:right">-${fmt(c.vDesc||0)}</td></tr>`:''}
+    ${(c.iva||0)>0?`<tr class="section"><td colspan="3">IVA 19%</td><td style="text-align:right">+${fmt(c.vIva||0)}</td></tr>`:''}
+    <tr class="total-row"><td colspan="3">PRECIO FINAL AL CLIENTE</td><td style="text-align:right;font-size:16px">${fmt(c.precioFinal)}</td></tr>
+    <tr class="section"><td colspan="3" style="color:#7A5C46">Valor por persona</td><td style="text-align:right;color:#7A5C46">${fmt(c.precioFinal/(c.personas||1))}</td></tr>
+    <tr class="section"><td colspan="3" style="color:#4A6741">Utilidad estimada</td><td style="text-align:right;color:#4A6741;font-weight:600">${fmt(c.precioFinal-c.costoTotal)}</td></tr>
+  </tbody></table>
+  <div style="margin-top:20px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;background:#3D1C02;color:#F2EBE0;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 Imprimir / Guardar PDF</button></div>
+  </body></html>`);
+  win.document.close();
+}
 function renderLP(personas,dias){
   const el=document.getElementById('lista-preview');
   if(!barraActiva||!bebidasSeleccionadas.length){el.innerHTML='<div class="empty" style="padding:12px"><div class="empty-text" style="font-size:12px">Selecciona una barra y bebidas</div></div>';return;}
@@ -1517,19 +1705,19 @@ function genPDF(c){
     <!-- Contenido sobre la marca de agua -->
     <div style="position:relative;z-index:1">
 
-    <!-- ENCABEZADO -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
+    <!-- HOJAS DORADAS - header completo sin margen -->
+    ${iHojas?`<div style="margin:-32px -34px 16px -34px"><img src="${iHojas}" style="width:100%;height:70px;object-fit:cover;object-position:center;display:block;opacity:0.92"></div>`:''}
+
+    <!-- ENCABEZADO: logo izq + sellos der -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
       <div style="flex:1">
-        ${iHojas?`<img src="${iHojas}" style="height:65px;object-fit:contain;display:block;margin-bottom:4px;opacity:0.92">`:''}
         ${iLogo?`<img src="${iLogo}" style="height:46px;object-fit:contain;display:block">`:`<div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#3D1C02">Kirsten Café</div>`}
         <div style="font-size:10px;color:#7A5C46;margin-top:6px;line-height:1.5">Cotización N° <strong style="color:#3D1C02">${c.id}</strong><br>Válida por 15 días</div>
       </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center">
-          ${iCafecol?`<img src="${iCafecol}" style="height:60px;object-fit:contain" title="Café de Colombia">`:''}
-          ${iOrigen?`<img src="${iOrigen}" style="height:60px;object-fit:contain" title="Denominación de Origen">`:''}
-          ${iAntojate?`<img src="${iAntojate}" style="height:60px;object-fit:contain" title="Antójate de Antioquia">`:''}
-        </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        ${iCafecol?`<img src="${iCafecol}" style="height:65px;object-fit:contain" title="Café de Colombia">`:''}
+        ${iOrigen?`<img src="${iOrigen}" style="height:65px;object-fit:contain" title="Denominación de Origen">`:''}
+        ${iAntojate?`<img src="${iAntojate}" style="height:65px;object-fit:contain" title="Antójate de Antioquia">`:''}
       </div>
     </div>
 
@@ -1940,6 +2128,7 @@ function renderCompletadas(){
       <td><strong>${fmt(c.precioFinal)}</strong></td>
       <td><strong style="color:${util>=0?'var(--sage)':'var(--red)'}">${fmt(util)}</strong></td>
       <td><span class="tag ${mpct>=30?'tg':'tgold'}">${mpct}%</span></td>
+      <td><button class="btn btn-danger btn-xs" onclick="elimCot('${c.id}')">✕</button></td>
     </tr>`;
   }).join('');
 }
