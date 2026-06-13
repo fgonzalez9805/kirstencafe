@@ -686,7 +686,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 </div>
 <!-- MODALES -->
 <div class="mo" id="mo-pdf"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-pdf')">✕</button><div id="pdf-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button><button class="btn btn-outline" onclick="closeM('mo-pdf')">Cerrar</button></div></div></div>
-<div class="mo" id="mo-ver"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-ver')">✕</button><div id="ver-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button><button class="btn btn-gold" onclick="irChecklist()">📦 Checklist</button><button class="btn btn-outline" onclick="closeM('mo-ver')">Cerrar</button></div></div></div>
+<div class="mo" id="mo-ver"><div class="modal modal-wide"><button class="mc" onclick="closeM('mo-ver')">✕</button><div id="ver-content"></div><div class="btn-group no-print"><button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button><button class="btn btn-gold" onclick="descargarDesglose()">⬇ Desglose PDF</button><button class="btn btn-sage" onclick="irChecklist()">📦 Checklist</button><button class="btn btn-outline" onclick="closeM('mo-ver')">Cerrar</button></div></div></div>
 
 <!-- EDITAR COTIZACIÓN — igual que nueva cotización -->
 <div class="mo" id="mo-edit"><div class="modal modal-wide">
@@ -724,6 +724,13 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     <select id="ec-estado"><option>Pendiente</option><option>Confirmado</option><option>En proceso</option><option>Completado</option><option>Cancelado</option></select>
   </div>
   <div class="fg"><label>Notas</label><textarea id="ec-notas" rows="2"></textarea></div>
+  <div class="fg"><label>👤 Baristas asignados</label>
+    <div id="ec-baristas-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:10px"></div>
+    <div style="display:flex;gap:6px">
+      <input id="ec-barista-nuevo" type="text" placeholder="Nombre del barista" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addBaristaEdit();}">
+      <button class="btn btn-outline btn-xs" onclick="addBaristaEdit()">+ Añadir</button>
+    </div>
+  </div>
   <!-- Preview de costos -->
   <div class="ci" style="margin-top:10px">
     <div class="ci-title">Vista previa del costo recalculado</div>
@@ -991,7 +998,15 @@ function loadS(){
     if(!S.cotizaciones)S.cotizaciones=[];
     if(!S.movimientos)S.movimientos=[];
     if(!S.eventos)S.eventos=[];
-    if(!S.barras||!S.barras.length) S.barras=JSON.parse(JSON.stringify(DEF_BARRAS));
+    // Siempre sincronizar barras con DEF_BARRAS (elimina blanca/impresora si estaban guardadas)
+    if(!S.barras||!S.barras.length){
+      S.barras=JSON.parse(JSON.stringify(DEF_BARRAS));
+    } else {
+      // Eliminar barras obsoletas (blanca, impresora)
+      S.barras=S.barras.filter(b=>!['blanca','impresora'].includes(b.id));
+      // Añadir nuevas barras de DEF_BARRAS que no estén aún
+      DEF_BARRAS.forEach(def=>{if(!S.barras.find(b=>b.id===def.id))S.barras.push(JSON.parse(JSON.stringify(def)));});
+    }
     if(!S.delicates) S.delicates=JSON.parse(JSON.stringify(DEF_DELICATES));
     if(!S.souvenirs) S.souvenirs=JSON.parse(JSON.stringify(DEF_SOUVENIRS));
     if(!S.imgPDF) S.imgPDF={};
@@ -1171,13 +1186,18 @@ function renderPersonal(){
   if(!personal_cot.length){el.innerHTML='<div style="color:var(--muted2);font-size:12px;padding:5px 0">Sin personal. Clic en "+ Añadir".</div>';return;}
   el.innerHTML=personal_cot.map((p,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--cream2)">
     <select style="flex:1;font-size:12.5px" onchange="personal_cot[${i}].rolId=this.value;calcCot()">${S.roles.map(r=>`<option value="${r.id}" ${p.rolId===r.id?'selected':''}>${r.nombre} — ${fmt(r.tarifa)}/día</option>`).join('')}</select>
-    <input type="number" style="width:55px" min="1" max="10" value="${p.dias||1}" oninput="personal_cot[${i}].dias=+this.value;calcCot()" title="Días">
+    <input type="number" style="width:55px" min="1" max="10" value="${p.dias||1}" oninput="personal_cot[${i}].dias=+this.value||1;actualizarTotalPersonal(${i});calcCot()" title="Días">
     <span style="font-size:10.5px;color:var(--muted)">día(s)</span>
     <span style="font-size:12px;color:var(--muted);width:80px;text-align:right">${fmt(calcPI(p))}</span>
     <button class="btn btn-danger btn-xs" onclick="personal_cot.splice(${i},1);renderPersonal();calcCot()">✕</button>
   </div>`).join('');
 }
 function calcPI(p){const r=S.roles.find(x=>x.id===p.rolId);return r?(r.tarifa*(p.dias||1)):0;}
+function actualizarTotalPersonal(i){
+  if(i>=personal_cot.length)return;
+  const spans=document.querySelectorAll('#personal-list div > span[style*="width:80px"]');
+  if(spans[i]) spans[i].textContent=fmt(calcPI(personal_cot[i]));
+}
 function addPersonal(){if(!S.roles.length){toast('Añade roles en Config');return;}personal_cot.push({rolId:S.roles[0].id,dias:1});renderPersonal();calcCot();}
 
 // ═══════════════════ TOGGLE TRANSPORTE ═══════════════════
@@ -1216,21 +1236,24 @@ function addAlquiler(){
 function renderAlquiler(){
   const el=document.getElementById('f-alquiler-list')||document.getElementById('alquiler-list');
   if(!el){calcCot();return;}
-  if(!alquilerItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin equipos alquilados</div>';calcCot();return;}
+  if(!alquilerItems.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin equipos alquilados. Clic en "+ Añadir".</div>';
+    calcCot();return;
+  }
   el.innerHTML=alquilerItems.map((item,i)=>`
     <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
-      <input type="text" placeholder="Ej: Máquina espresso" value="${item.nombre}" oninput="alquilerItems[${i}].nombre=this.value" style="flex:1;font-size:12.5px;padding:7px 10px">
-      <div style="position:relative;width:130px">
-        <input type="text" inputmode="numeric" placeholder="Valor COP"
-          value="${item.valor?Math.round(item.valor).toLocaleString('es-CO'):''}"
-          oninput="alquilerItems[${i}].valor=+this.value.replace(/\./g,'').replace(/[^\d]/g,'');this.value=alquilerItems[${i}].valor?alquilerItems[${i}].valor.toLocaleString('es-CO'):'';calcCot()"
-          style="width:100%;font-size:12.5px;padding:7px 10px">
-      </div>
-      <span style="font-size:11px;color:var(--sage);width:80px;text-align:right;font-weight:600">${item.valor?fmt(item.valor):''}</span>
+      <input type="text" placeholder="Ej: Máquina espresso" value="${item.nombre}"
+        oninput="alquilerItems[${i}].nombre=this.value"
+        style="flex:1;font-size:12.5px;padding:7px 10px;border:1.5px solid var(--cream3);border-radius:8px">
+      <input type="number" placeholder="Valor COP" value="${item.valor||''}"
+        oninput="alquilerItems[${i}].valor=+this.value||0;calcCot()"
+        style="width:140px;font-size:12.5px;padding:7px 10px;border:1.5px solid var(--cream3);border-radius:8px"
+        min="0">
+      <span style="font-size:11.5px;color:var(--sage);width:90px;text-align:right;font-weight:600;flex-shrink:0">${item.valor?fmt(item.valor):''}</span>
       <button class="btn btn-danger btn-xs" onclick="alquilerItems.splice(${i},1);renderAlquiler()">✕</button>
     </div>`).join('');
   const total=alquilerItems.reduce((a,x)=>a+(x.valor||0),0);
-  if(total>0) el.innerHTML+=`<div style="text-align:right;font-size:12px;font-weight:600;color:var(--coffee);padding-top:5px;border-top:1px solid var(--cream3)">Total alquiler: ${fmt(total)}</div>`;
+  if(total>0) el.innerHTML+=`<div style="text-align:right;font-size:12px;font-weight:600;color:var(--coffee);padding-top:5px;border-top:1px solid var(--cream3)">Total alquiler: <strong>${fmt(total)}</strong></div>`;
   calcCot();
 }
 
@@ -1239,17 +1262,31 @@ function addDelicate(){
   renderDelicates();
 }
 function renderDelicates(){
-  const el=document.getElementById('delicates-list');
-  if(!delicateItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin delicates</div>';calcCot();return;}
+  const el=document.getElementById('delicates-list')||document.getElementById('f-delicates-list');
+  if(!el){calcCot();return;}
+  if(!delicateItems.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin delicates. Clic en "+ Añadir".</div>';
+    calcCot();return;
+  }
   el.innerHTML=delicateItems.map((item,i)=>`
-    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
-      <input type="text" placeholder="Ej: Mini alfajores" value="${item.nombre}" oninput="delicateItems[${i}].nombre=this.value" style="flex:1;min-width:120px;font-size:12px;padding:6px 8px">
-      <input type="number" placeholder="Cant." min="1" value="${item.cantidad}" oninput="delicateItems[${i}].cantidad=+this.value;calcCot()" style="width:60px;font-size:12px;padding:6px 8px">
-      <input type="text" inputmode="numeric" placeholder="Precio/u" value="${item.precioUnit?Math.round(item.precioUnit).toLocaleString('es-CO'):''}" oninput="delicateItems[${i}].precioUnit=+this.value.replace(/\\./g,'').replace(/[^\\d]/g,'');calcCot()" style="width:110px;font-size:12px;padding:6px 8px">
-      <span style="font-size:11px;color:var(--sage);white-space:nowrap">${fmt(item.cantidad*item.precioUnit)}</span>
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      <input type="text" placeholder="Ej: Mini alfajores" value="${item.nombre}"
+        oninput="delicateItems[${i}].nombre=this.value"
+        style="flex:2;font-size:12px;padding:6px 9px;border:1.5px solid var(--cream3);border-radius:7px">
+      <input type="number" placeholder="Cant." value="${item.cantidad||''}" min="0"
+        oninput="delicateItems[${i}].cantidad=+this.value||0;actualizarTotalDelicate(${i});calcCot()"
+        style="width:65px;font-size:12px;padding:6px 8px;border:1.5px solid var(--cream3);border-radius:7px">
+      <input type="number" placeholder="Precio/u" value="${item.precioUnit||''}" min="0"
+        oninput="delicateItems[${i}].precioUnit=+this.value||0;actualizarTotalDelicate(${i});calcCot()"
+        style="width:100px;font-size:12px;padding:6px 8px;border:1.5px solid var(--cream3);border-radius:7px">
+      <span id="del-total-${i}" style="font-size:11.5px;font-weight:600;color:var(--sage);width:75px;text-align:right;flex-shrink:0">${fmt((item.cantidad||0)*(item.precioUnit||0))}</span>
       <button class="btn btn-danger btn-xs" onclick="delicateItems.splice(${i},1);renderDelicates()">✕</button>
     </div>`).join('');
   calcCot();
+}
+function actualizarTotalDelicate(i){
+  const el=document.getElementById('del-total-'+i);
+  if(el) el.textContent=fmt((delicateItems[i].cantidad||0)*(delicateItems[i].precioUnit||0));
 }
 
 function addSouvenir(){
@@ -1257,17 +1294,31 @@ function addSouvenir(){
   renderSouvenirs();
 }
 function renderSouvenirs(){
-  const el=document.getElementById('souvenirs-list');
-  if(!souvenirItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin souvenirs</div>';calcCot();return;}
+  const el=document.getElementById('souvenirs-list')||document.getElementById('f-souvenirs-list');
+  if(!el){calcCot();return;}
+  if(!souvenirItems.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px">Sin souvenirs. Clic en "+ Añadir".</div>';
+    calcCot();return;
+  }
   el.innerHTML=souvenirItems.map((item,i)=>`
-    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
-      <input type="text" placeholder="Ej: Bolsa café 250g" value="${item.nombre}" oninput="souvenirItems[${i}].nombre=this.value" style="flex:1;min-width:120px;font-size:12px;padding:6px 8px">
-      <input type="number" placeholder="Cant." min="1" value="${item.cantidad}" oninput="souvenirItems[${i}].cantidad=+this.value;calcCot()" style="width:60px;font-size:12px;padding:6px 8px">
-      <input type="text" inputmode="numeric" placeholder="Precio/u" value="${item.precioUnit?Math.round(item.precioUnit).toLocaleString('es-CO'):''}" oninput="souvenirItems[${i}].precioUnit=+this.value.replace(/\\./g,'').replace(/[^\\d]/g,'');calcCot()" style="width:110px;font-size:12px;padding:6px 8px">
-      <span style="font-size:11px;color:var(--sage);white-space:nowrap">${fmt(item.cantidad*item.precioUnit)}</span>
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      <input type="text" placeholder="Ej: Bolsa café 250g" value="${item.nombre}"
+        oninput="souvenirItems[${i}].nombre=this.value"
+        style="flex:2;font-size:12px;padding:6px 9px;border:1.5px solid var(--cream3);border-radius:7px">
+      <input type="number" placeholder="Cant." value="${item.cantidad||''}" min="0"
+        oninput="souvenirItems[${i}].cantidad=+this.value||0;actualizarTotalSouvenir(${i});calcCot()"
+        style="width:65px;font-size:12px;padding:6px 8px;border:1.5px solid var(--cream3);border-radius:7px">
+      <input type="number" placeholder="Precio/u" value="${item.precioUnit||''}" min="0"
+        oninput="souvenirItems[${i}].precioUnit=+this.value||0;actualizarTotalSouvenir(${i});calcCot()"
+        style="width:100px;font-size:12px;padding:6px 8px;border:1.5px solid var(--cream3);border-radius:7px">
+      <span id="sou-total-${i}" style="font-size:11.5px;font-weight:600;color:var(--sage);width:75px;text-align:right;flex-shrink:0">${fmt((item.cantidad||0)*(item.precioUnit||0))}</span>
       <button class="btn btn-danger btn-xs" onclick="souvenirItems.splice(${i},1);renderSouvenirs()">✕</button>
     </div>`).join('');
   calcCot();
+}
+function actualizarTotalSouvenir(i){
+  const el=document.getElementById('sou-total-'+i);
+  if(el) el.textContent=fmt((souvenirItems[i].cantidad||0)*(souvenirItems[i].precioUnit||0));
 }
 
 function totalAlquiler(){return alquilerItems.reduce((a,i)=>a+(i.valor||0),0);}
@@ -1464,15 +1515,15 @@ function genPDF(c){
     <!-- ENCABEZADO -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
       <div style="flex:1">
-        ${iHojas?`<img src="${iHojas}" style="height:55px;object-fit:contain;display:block;margin-bottom:6px;opacity:0.9">`:''}
-        ${iLogo?`<img src="${iLogo}" style="height:60px;object-fit:contain;display:block">`:`<div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#3D1C02">Kirsten Café</div>`}
+        ${iHojas?`<img src="${iHojas}" style="height:65px;object-fit:contain;display:block;margin-bottom:4px;opacity:0.92">`:''}
+        ${iLogo?`<img src="${iLogo}" style="height:46px;object-fit:contain;display:block">`:`<div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#3D1C02">Kirsten Café</div>`}
         <div style="font-size:10px;color:#7A5C46;margin-top:6px;line-height:1.5">Cotización N° <strong style="color:#3D1C02">${c.id}</strong><br>Válida por 15 días</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center">
-          ${iCafecol?`<img src="${iCafecol}" style="height:46px;object-fit:contain" title="Café de Colombia">`:''}
-          ${iOrigen?`<img src="${iOrigen}" style="height:46px;object-fit:contain" title="Denominación de Origen">`:''}
-          ${iAntojate?`<img src="${iAntojate}" style="height:46px;object-fit:contain" title="Antójate de Antioquia">`:''}
+          ${iCafecol?`<img src="${iCafecol}" style="height:60px;object-fit:contain" title="Café de Colombia">`:''}
+          ${iOrigen?`<img src="${iOrigen}" style="height:60px;object-fit:contain" title="Denominación de Origen">`:''}
+          ${iAntojate?`<img src="${iAntojate}" style="height:60px;object-fit:contain" title="Antójate de Antioquia">`:''}
         </div>
       </div>
     </div>
@@ -1511,9 +1562,9 @@ function genPDF(c){
         <li>Insumos y empaques de primera calidad</li>
         <li>Montaje y desmontaje de la barra</li>
         ${c.transIncluido&&c.trans>0?'<li>Transporte incluido</li>':''}
-        ${vajilla?`<li>Servicio con ${vajilla}</li>`:''}
-        ${delicates.length?`<li>Delicates: ${delicates.map(d=>d.nombre+' ('+d.cantidad+' und.)').join(', ')}</li>`:''}
-        ${souvenirs.length?`<li>Souvenirs de café: ${souvenirs.map(s=>s.nombre+' ('+s.cantidad+' und.)').join(', ')}</li>`:''}
+        ${vajilla?`<li>Servicio con <strong>${vajilla}</strong></li>`:''}
+        ${delicates.length?`<li>Delicates incluidos: ${delicates.map(d=>d.nombre+(d.cantidad>1?' ('+fmtNum(d.cantidad)+' und.)':'')).join(', ')}</li>`:''}
+        ${souvenirs.length?`<li>Souvenirs de café: ${souvenirs.map(s=>s.nombre+(s.cantidad>1?' ('+fmtNum(s.cantidad)+' und.)':'')).join(', ')}</li>`:''}
         ${c.notas?`<li>${c.notas}</li>`:''}
       </ul>
     </div>
@@ -1571,6 +1622,62 @@ function genPDF(c){
 
   </div>`;
 }
+function descargarDesglose(){
+  const c=S.cotizaciones.find(x=>x.id===cotVerID);
+  if(!c){toast('No hay cotización seleccionada');return;}
+  const win=window.open('','_blank','width=700,height=900');
+  if(!win){toast('Activa popups para descargar');return;}
+  const alquiler=Array.isArray(c.alquiler)?c.alquiler:[];
+  const delicates=Array.isArray(c.delicates)?c.delicates:[];
+  const souvenirs=Array.isArray(c.souvenirs)?c.souvenirs:[];
+  const logistico=c.logistico||0;
+  const rows=(items,colorHex)=>items.map(it=>`<tr style="background:${colorHex}"><td>${it.nombre||'—'}</td><td style="text-align:right">${it.cantidad?fmtNum(it.cantidad):''}</td><td style="text-align:right">${it.precioUnit?fmt(it.precioUnit):it.valor?fmt(it.valor):''}</td><td style="text-align:right;font-weight:600">${fmt((it.cantidad||1)*(it.precioUnit||it.valor||0))}</td></tr>`).join('');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Desglose ${c.id}</title>
+  <style>body{font-family:'Segoe UI',sans-serif;margin:24px;color:#2C1A0E;font-size:13px}
+  h1{font-size:18px;color:#3D1C02;margin-bottom:4px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#7A5C46;margin:16px 0 6px;border-bottom:1px solid #E8DDD0;padding-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-bottom:6px}
+  th{background:#3D1C02;color:#F2EBE0;padding:6px 10px;font-size:11px;text-align:left}
+  td{padding:5px 10px;border-bottom:1px solid #F2EBE0}
+  .total-row td{font-weight:700;font-size:14px;border-top:2px solid #C9973A;background:#fffbf2}
+  .section{background:#F9F5EF;padding:2px 10px;margin:2px 0}
+  @media print{button{display:none}}</style></head><body>
+  <h1>📊 Desglose Completo — ${c.id}</h1>
+  <div style="font-size:12px;color:#7A5C46;margin-bottom:16px">${c.cliente} · ${c.barraName} · ${c.fecha}${c.dias>1?' → '+calcFechaFin(c.fecha,c.dias):''} · ${fmtNum(c.personas)} personas</div>
+
+  <h2>Costos de producción</h2>
+  <table><thead><tr><th>Concepto</th><th style="text-align:right">Det.</th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>
+    <tr class="section"><td>Insumos brutos (bebidas × personas × días)</td><td style="text-align:right">${fmtNum(c.personas)} pax × ${c.dias}d</td><td></td><td style="text-align:right">${fmt(c.costoInsBruto)}</td></tr>
+    <tr class="section"><td>Merma 10%</td><td></td><td></td><td style="text-align:right">+${fmt(c.merma||0)}</td></tr>
+    <tr class="section"><td>Personal</td><td style="text-align:right">${c.personal?c.personal.map(p=>{const r=S.roles.find(x=>x.id===p.rolId);return r?r.nombre+' ×'+p.dias+'d':''}).join(', '):''}</td><td></td><td style="text-align:right">${fmt(c.costoPersonal)}</td></tr>
+    <tr class="section"><td>Depreciación maquinaria</td><td style="text-align:right">${c.dias} día(s)</td><td></td><td style="text-align:right">${fmt(c.costoDep)}</td></tr>
+    <tr class="section"><td>Transporte</td><td></td><td></td><td style="text-align:right">${c.transIncluido?fmt(c.trans):'No incluido'}</td></tr>
+    <tr class="section"><td>Imprevistos</td><td></td><td></td><td style="text-align:right">${fmt(c.imp||0)}</td></tr>
+    <tr class="section"><td>Otros costos</td><td></td><td></td><td style="text-align:right">${fmt(c.otros||0)}</td></tr>
+  </tbody></table>
+
+  ${alquiler.length?`<h2>Alquiler de equipos</h2><table><thead><tr><th>Equipo</th><th></th><th></th><th style="text-align:right">Valor</th></tr></thead><tbody>${rows(alquiler,'#fff')}</tbody></table>`:''}
+
+  ${delicates.length?`<h2>Delicates</h2><table><thead><tr><th>Producto</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio/u</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows(delicates,'#fffbf2')}</tbody></table>`:''}
+
+  ${souvenirs.length?`<h2>Souvenirs de café</h2><table><thead><tr><th>Souvenir</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Precio/u</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows(souvenirs,'#f0f9f0')}</tbody></table>`:''}
+
+  ${logistico>0?`<h2>Valor logístico</h2><table><tbody><tr class="section"><td>Checklist, cierre y actividades logísticas</td><td></td><td></td><td style="text-align:right">${fmt(logistico)}</td></tr></tbody></table>`:''}
+
+  <h2>Resumen financiero</h2>
+  <table><tbody>
+    <tr class="section"><td>Costo operativo total</td><td></td><td></td><td style="text-align:right"><strong>${fmt(c.costoTotal)}</strong></td></tr>
+    <tr class="section"><td>Margen (${Math.round((c.margen||0)*100)}%)</td><td></td><td></td><td style="text-align:right">+${fmt(c.vMargen||0)}</td></tr>
+    ${(c.desc||0)>0?`<tr class="section"><td>Descuento (${Math.round((c.desc||0)*100)}%)</td><td></td><td></td><td style="text-align:right">-${fmt(c.vDesc||0)}</td></tr>`:''}
+    ${(c.iva||0)>0?`<tr class="section"><td>IVA 19%</td><td></td><td></td><td style="text-align:right">+${fmt(c.vIva||0)}</td></tr>`:''}
+    <tr class="total-row"><td colspan="3">PRECIO FINAL AL CLIENTE</td><td style="text-align:right;font-size:16px">${fmt(c.precioFinal)}</td></tr>
+    <tr class="section"><td colspan="3" style="color:#7A5C46">Valor por persona</td><td style="text-align:right;color:#7A5C46">${fmt(c.precioFinal/(c.personas||1))}</td></tr>
+    <tr class="section"><td colspan="3" style="color:#4A6741">Utilidad estimada</td><td style="text-align:right;color:#4A6741;font-weight:600">${fmt(c.precioFinal-c.costoTotal)}</td></tr>
+  </tbody></table>
+  <div style="margin-top:20px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;background:#3D1C02;color:#F2EBE0;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 Imprimir / Guardar PDF</button></div>
+  </body></html>`);
+  win.document.close();
+}
 function genDesglose(c){
   const alquiler=Array.isArray(c.alquiler)?c.alquiler:[];
   const delicates=Array.isArray(c.delicates)?c.delicates:[];
@@ -1621,7 +1728,7 @@ function verPDF(){
   document.getElementById('pdf-content').innerHTML=genPDF(tmp);
   openM('mo-pdf');
 }
-function verCot(id){const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;cotVerID=id;document.getElementById('ver-content').innerHTML=genPDF(c)+genDesglose(c);openM('mo-ver');}
+function verCot(id){const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;cotVerID=id;document.getElementById('ver-content').innerHTML=genPDF(c)+(c.baristas&&c.baristas.length?`<div style="background:var(--cream);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px"><strong>👤 Baristas asignados:</strong> ${c.baristas.join(', ')}</div>`:'')+genDesglose(c);openM('mo-ver');}
 function irChecklist(){closeM('mo-ver');const c=S.cotizaciones.find(x=>x.id===cotVerID);if(c){document.getElementById('ev-cot-sel').value=c.id;cargarCot();}showPage('evento');}
 
 // ═══════════════════ LISTA COTIZACIONES ═══════════════════
@@ -1681,6 +1788,8 @@ function editCot(id){
   document.getElementById('ec-iva').value=c.iva||0;
   document.getElementById('ec-estado').value=c.estado;
   document.getElementById('ec-notas').value=c.notas||'';
+  baristasEdit=Array.isArray(c.baristas)?[...c.baristas]:[];
+  renderBaristasEdit();
   transIncluidoEdit=c.transIncluido!==false;
   actualizarToggleTransEdit();
   // Personal
@@ -1702,6 +1811,18 @@ function renderPersonalEdit(){
     <span style="font-size:11.5px;color:var(--muted)">${fmt((S.roles.find(r=>r.id===p.rolId)||{tarifa:0}).tarifa*(p.dias||1))}</span>
     <button class="btn btn-danger btn-xs" onclick="personalEdit.splice(${i},1);renderPersonalEdit();calcEditCot()">✕</button>
   </div>`).join('');
+}
+let baristasEdit=[];
+function renderBaristasEdit(){
+  const el=document.getElementById('ec-baristas-list');if(!el)return;
+  el.innerHTML=baristasEdit.map((b,i)=>`<span style="background:var(--cream2);border-radius:20px;padding:3px 10px;font-size:12px;display:flex;align-items:center;gap:5px">${b}<button onclick="baristasEdit.splice(${i},1);renderBaristasEdit()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px">✕</button></span>`).join('');
+}
+function addBaristaEdit(){
+  const nom=document.getElementById('ec-barista-nuevo').value.trim();
+  if(!nom)return;
+  baristasEdit.push(nom);
+  document.getElementById('ec-barista-nuevo').value='';
+  renderBaristasEdit();
 }
 function addPersonalEdit(){if(!S.roles.length){toast('Añade roles en Config');return;}personalEdit.push({rolId:S.roles[0].id,dias:1});renderPersonalEdit();calcEditCot();}
 function renderBebidasEdit(c){
@@ -1769,6 +1890,7 @@ function guardarEdit(){
   c.desc=n.desc;c.vDesc=n.vDesc;c.iva=n.iva;c.vIva=n.vIva;c.precioFinal=n.precioFinal;
   c.estado=document.getElementById('ec-estado').value;
   c.notas=document.getElementById('ec-notas').value;
+  c.baristas=JSON.parse(JSON.stringify(baristasEdit));
   c.personal=JSON.parse(JSON.stringify(personalEdit));
   c.bebidas=JSON.parse(JSON.stringify(bebidasEdit));
   c.listaCompras=calcListaCompras(bebidasEdit,c.personas,c.dias);
