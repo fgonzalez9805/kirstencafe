@@ -352,6 +352,13 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
           <textarea id="f-requerimientos" rows="4" placeholder="• Dos (2) puntos sencillos de energía a 110 voltios con capacidad para breaker de 30 amperios.&#10;• Una mesa.&#10;• Dos canecas."></textarea>
         </div>
         <div class="fg"><label>Notas adicionales para el cliente</label><textarea id="f-notas" rows="2" placeholder="Incluye, condiciones, observaciones..."></textarea></div>
+        <div class="fg"><label>👤 Baristas asignados al evento</label>
+          <div id="f-baristas-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:10px"></div>
+          <div style="display:flex;gap:6px">
+            <input id="f-barista-nuevo" type="text" placeholder="Nombre del barista" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addBaristaForm();}">
+            <button class="btn btn-outline btn-xs" onclick="addBaristaForm()">+ Añadir</button>
+          </div>
+        </div>
       </div>
 
       <!-- EXTRAS COTIZACIÓN -->
@@ -550,7 +557,8 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
     </div>
     <div class="fr">
       <div class="fg"><label>Fecha</label><input id="ev-fecha" type="date"></div>
-      <div class="fg"><label>Precio según cotización vinculada (COP)</label><input id="ev-cobrado" type="text" inputmode="numeric" placeholder="Se llena desde la cotización" readonly style="background:var(--cream);color:var(--muted)"></div>
+      <!-- precio cobrado oculto - se llena desde cotización -->
+      <input type="hidden" id="ev-cobrado" value="">
     </div>
   </div>
   <div class="stabs">
@@ -1456,15 +1464,15 @@ function genPDF(c){
     <!-- ENCABEZADO -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
       <div style="flex:1">
-        ${iHojas?`<img src="${iHojas}" style="height:38px;object-fit:contain;display:block;margin-bottom:5px;opacity:0.85">`:''}
+        ${iHojas?`<img src="${iHojas}" style="height:55px;object-fit:contain;display:block;margin-bottom:6px;opacity:0.9">`:''}
         ${iLogo?`<img src="${iLogo}" style="height:60px;object-fit:contain;display:block">`:`<div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#3D1C02">Kirsten Café</div>`}
         <div style="font-size:10px;color:#7A5C46;margin-top:6px;line-height:1.5">Cotización N° <strong style="color:#3D1C02">${c.id}</strong><br>Válida por 15 días</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center">
-          ${iCafecol?`<img src="${iCafecol}" style="height:34px;object-fit:contain" title="Café de Colombia">`:''}
-          ${iOrigen?`<img src="${iOrigen}" style="height:34px;object-fit:contain" title="Denominación de Origen">`:''}
-          ${iAntojate?`<img src="${iAntojate}" style="height:34px;object-fit:contain" title="Antójate de Antioquia">`:''}
+          ${iCafecol?`<img src="${iCafecol}" style="height:46px;object-fit:contain" title="Café de Colombia">`:''}
+          ${iOrigen?`<img src="${iOrigen}" style="height:46px;object-fit:contain" title="Denominación de Origen">`:''}
+          ${iAntojate?`<img src="${iAntojate}" style="height:46px;object-fit:contain" title="Antójate de Antioquia">`:''}
         </div>
       </div>
     </div>
@@ -1564,20 +1572,55 @@ function genPDF(c){
   </div>`;
 }
 function genDesglose(c){
+  const alquiler=Array.isArray(c.alquiler)?c.alquiler:[];
+  const delicates=Array.isArray(c.delicates)?c.delicates:[];
+  const souvenirs=Array.isArray(c.souvenirs)?c.souvenirs:[];
+  const logistico=c.logistico||0;
   return `<div style="margin-top:14px;background:var(--cream);border:1.5px dashed var(--border2);border-radius:10px;padding:14px;font-size:12px">
-    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:8px;font-weight:600">📊 Desglose interno</div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0"><span>Insumos brutos</span><span>${fmt(c.costoInsBruto)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>Merma 10%</span><span>+${fmt(c.merma)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0"><span>Personal</span><span>${fmt(c.costoPersonal)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0"><span>Depreciación</span><span>${fmt(c.costoDep)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0"><span>Transporte</span><span>${c.transIncluido?fmt(c.trans):'No incluido'}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0"><span>Imprevistos + otros</span><span>${fmt((c.imp||0)+(c.otros||0))}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:7px 0 2px;border-top:1px solid var(--cream3);margin-top:5px;font-weight:600"><span>Costo total</span><span>${fmt(c.costoTotal)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--sage)"><span>Margen (${Math.round((c.margen||0)*100)}%)</span><span>+${fmt(c.vMargen)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:7px 0;border-top:2px solid var(--gold);margin-top:5px;font-family:'Playfair Display',serif;font-size:14px;font-weight:700"><span>Precio final</span><span>${fmt(c.precioFinal)}</span></div>
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:8px;font-weight:600">📊 Desglose interno de costos</div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3)"><span>Insumos brutos (bebidas)</span><span>${fmt(c.costoInsBruto)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3);color:var(--muted)"><span>Merma 10%</span><span>+${fmt(c.merma)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3)"><span>Personal</span><span>${fmt(c.costoPersonal)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3)"><span>Depreciación equipos</span><span>${fmt(c.costoDep)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3)"><span>Transporte</span><span>${c.transIncluido?fmt(c.trans):'No incluido'}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3)"><span>Imprevistos</span><span>${fmt(c.imp||0)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3)"><span>Otros costos</span><span>${fmt(c.otros||0)}</span></div>
+    ${alquiler.map(a=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3);color:var(--blue)"><span>🏭 Alquiler: ${a.nombre}</span><span>${fmt(a.valor||0)}</span></div>`).join('')}
+    ${delicates.map(d=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3);color:var(--caramel)"><span>🧁 ${d.nombre} × ${fmtNum(d.cantidad||0)}</span><span>${fmt((d.cantidad||0)*(d.precioUnit||0))}</span></div>`).join('')}
+    ${souvenirs.map(s=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3);color:var(--caramel)"><span>☕ Souvenir: ${s.nombre} × ${fmtNum(s.cantidad||0)}</span><span>${fmt((s.cantidad||0)*(s.precioUnit||0))}</span></div>`).join('')}
+    ${logistico>0?`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted var(--cream3);color:var(--sage)"><span>🚛 Valor logístico</span><span>${fmt(logistico)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--cream3);margin-top:4px;font-weight:600"><span>Costo operativo total</span><span>${fmt(c.costoTotal)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--sage)"><span>Margen (${Math.round((c.margen||0)*100)}%)</span><span>+${fmt(c.vMargen||0)}</span></div>
+    ${(c.desc||0)>0?`<div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>Descuento</span><span>-${fmt(c.vDesc||0)}</span></div>`:''}
+    ${(c.iva||0)>0?`<div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--muted)"><span>IVA</span><span>+${fmt(c.vIva||0)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--gold);margin-top:5px;font-family:'Playfair Display',serif;font-size:14px;font-weight:700"><span>Precio final</span><span>${fmt(c.precioFinal)}</span></div>
   </div>`;
 }
-function verPDF(){if(!barraActiva){toast('Selecciona una barra');return;}const n=calcCot();const b=DEF_BARRAS.find(x=>x.id===barraActiva);const tmp={id:'BORRADOR',cliente:document.getElementById('f-cliente').value||'Cliente',barraId:barraActiva,barraName:b?b.name+' '+b.icon:'',fecha:document.getElementById('f-fecha').value,ciudad:document.getElementById('f-ciudad').value,lugar:document.getElementById('f-lugar').value,...n,bebidas:bebidasSeleccionadas};document.getElementById('pdf-content').innerHTML=genPDF(tmp);openM('mo-pdf');}
+
+function verPDF(){
+  if(!barraActiva){toast('Selecciona una barra');return;}
+  const n=calcCot();
+  const b=DEF_BARRAS.find(x=>x.id===barraActiva)||(S.barras||[]).find(x=>x.id===barraActiva)||{};
+  const tmp={
+    id:'BORRADOR',
+    cliente:document.getElementById('f-cliente').value||'Cliente',
+    barraId:barraActiva,barraName:b.name+(b.icon?' '+b.icon:''),
+    fecha:document.getElementById('f-fecha').value,
+    ciudad:document.getElementById('f-ciudad').value,
+    lugar:document.getElementById('f-lugar').value,
+    saludo:document.getElementById('f-saludo')?document.getElementById('f-saludo').value:'Cordial saludo,',
+    vajilla:document.getElementById('f-vajilla')?document.getElementById('f-vajilla').value:'',
+    requerimientos:document.getElementById('f-requerimientos')?document.getElementById('f-requerimientos').value:'',
+    alquiler:JSON.parse(JSON.stringify(alquilerItems||[])),
+    delicates:JSON.parse(JSON.stringify(delicateItems||[])),
+    souvenirs:JSON.parse(JSON.stringify(souvenirItems||[])),
+    logistico:moneyVal('f-logistico')||0,
+    notas:document.getElementById('f-notas')?document.getElementById('f-notas').value:'',
+    ...n,bebidas:bebidasSeleccionadas
+  };
+  document.getElementById('pdf-content').innerHTML=genPDF(tmp);
+  openM('mo-pdf');
+}
 function verCot(id){const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;cotVerID=id;document.getElementById('ver-content').innerHTML=genPDF(c)+genDesglose(c);openM('mo-ver');}
 function irChecklist(){closeM('mo-ver');const c=S.cotizaciones.find(x=>x.id===cotVerID);if(c){document.getElementById('ev-cot-sel').value=c.id;cargarCot();}showPage('evento');}
 
@@ -2570,39 +2613,32 @@ document.addEventListener('DOMContentLoaded',function(){
 // Usamos type="text" virtualmente: guardamos el valor numérico real
 // pero mostramos con puntos. Los inputs que aplican tienen data-money.
 function setupMoneyInputs(){
-  // IDs de todos los inputs de dinero en la app
+  // Solo aplicar a inputs estáticos conocidos (los dinámicos se formatean inline)
   const moneyIds=[
     'f-transporte','f-imprevistos','f-otros','f-logistico',
     'ec-trans','ec-imp','ec-otros',
-    'ins-costo','maq-val','rol-tar',
-    'rec-costo','beb-custom-costo',
-    'ev-cobrado','ec-precio',
-    'mov-cant'
+    'ins-costo-paq','maq-val','rol-tar','beb-custom-costo',
   ];
   moneyIds.forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
-    // Cambiar a type text para poder mostrar puntos
-    el.setAttribute('type','text');
     el.setAttribute('inputmode','numeric');
+    // Formatear al salir del campo
+    el.addEventListener('blur',function(){
+      const raw=this.value.replace(/[^0-9]/g,'');
+      if(raw) this.value=parseInt(raw,10).toLocaleString('es-CO');
+    });
+    // Mientras escribe: solo permitir dígitos y formatear
     el.addEventListener('input',function(){
       const pos=this.selectionStart;
-      const raw=this.value.replace(/\./g,'').replace(/[^\d]/g,'');
-      if(raw===''){this.value='';return;}
-      const num=parseInt(raw,10);
-      const formatted=num.toLocaleString('es-CO');
-      this.value=formatted;
-      // Mantener cursor al final es más simple y claro
-    });
-    el.addEventListener('blur',function(){
-      const raw=this.value.replace(/\./g,'').replace(/[^\d]/g,'');
-      if(raw){this.value=parseInt(raw,10).toLocaleString('es-CO');}
+      const raw=this.value.replace(/[^0-9]/g,'');
+      if(!raw){this.value='';return;}
+      this.value=parseInt(raw,10).toLocaleString('es-CO');
     });
     el.addEventListener('focus',function(){this.select();});
   });
 }
 
-// Helper para leer valor numérico real de un input de dinero
 function moneyVal(id){
   const el=document.getElementById(id);
   if(!el)return 0;
