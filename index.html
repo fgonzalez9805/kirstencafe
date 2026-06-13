@@ -2547,6 +2547,11 @@ function guardarRol(){const eid=document.getElementById('rol-eid').value;const n
 function elimRol(id){if(!confirm('¿Eliminar?'))return;S.roles=S.roles.filter(r=>r.id!==id);saveS();renderCfg();toast('Eliminado');}
 
 // ═══════════════════ BARRAS CONFIG ═══════════════════
+function eliminarBarra(id){
+  if(!confirm('¿Eliminar esta barra?'))return;
+  S.barras=S.barras.filter(b=>b.id!==id);
+  saveS();renderCfg();renderBarras();toast('Barra eliminada');
+}
 function editarBarra(id){
   if(!S.barras||!S.barras.length) S.barras=JSON.parse(JSON.stringify(DEF_BARRAS));
   const b=S.barras.find(x=>x.id===id);if(!b)return;
@@ -2649,12 +2654,16 @@ function renderCfg(){
   const barras=S.barras&&S.barras.length?S.barras:DEF_BARRAS;
   document.getElementById('cfg-barras').innerHTML=barras.map(b=>{
     const bebidasCnt=b.bebidasIds?b.bebidasIds.length:'Auto';
+    const esDef=DEF_BARRAS.find(x=>x.id===b.id);
     return `<tr>
       <td style="font-size:20px">${b.icon}</td>
       <td><strong>${b.name}</strong></td>
       <td style="font-size:12px;color:var(--muted)">${b.desc}</td>
       <td><span class="tag tgold">${bebidasCnt} bebidas</span></td>
-      <td><button class="btn btn-outline btn-xs" onclick="editarBarra('${b.id}')">✏️ Editar bebidas</button></td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-xs" onclick="editarBarra('${b.id}')">✏️ Editar</button>
+        ${!esDef?`<button class="btn btn-danger btn-xs" onclick="eliminarBarra('${b.id}')">✕</button>`:'<button class="btn btn-danger btn-xs" onclick="eliminarBarra(\''+b.id+'\')" title="Eliminar esta barra">✕</button>'}
+      </div></td>
     </tr>`;
   }).join('');
   renderImagenesCfg();
