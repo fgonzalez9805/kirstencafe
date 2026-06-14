@@ -333,7 +333,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 
 <!-- NUEVA COTIZACIÓN -->
 <div id="page-cotizacion" class="page">
-  <div class="page-title">Nueva Cotización</div><div class="page-sub">Costos reales: insumos + personal + depreciación + operativos.</div>
+  <div class="page-title">Nueva Cotización <button class="btn btn-outline btn-sm no-print" onclick="resetCotizacion()" style="font-size:11px;margin-left:10px">🔄 Limpiar formulario</button></div><div class="page-sub">Costos reales: insumos + personal + depreciación + operativos.</div>
   <div class="g2" style="align-items:start">
     <div>
       <div class="card">
@@ -1622,6 +1622,30 @@ function renderLP(personas,dias){
   el.innerHTML=html;
 }
 // ═══════════════════ GUARDAR COTIZACIÓN ═══════════════════
+function resetCotizacion(){
+  if(personal_cot.length||barraActiva||bebidasSeleccionadas.length){
+    if(!confirm('¿Limpiar el formulario y empezar una nueva cotización?'))return;
+  }
+  barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];
+  transIncluidoNew=true;baristasForm=[];impresoraIncluida=false;
+  alquilerItems=[];delicateItems=[];souvenirItems=[];
+  document.getElementById('f-cliente').value='';
+  document.getElementById('f-notas').value='';
+  document.getElementById('f-requerimientos').value='';
+  document.getElementById('f-saludo').value='Cordial saludo,';
+  document.getElementById('f-vajilla').value='';
+  document.getElementById('f-dias').value='1';
+  document.getElementById('f-personas').value='100';
+  document.getElementById('f-horas').value='4';
+  document.getElementById('f-margen').value='35';
+  document.getElementById('f-descuento').value='0';
+  document.getElementById('f-fecha').valueAsDate=new Date();
+  setMoneyVal('f-transporte',80000);setMoneyVal('f-imprevistos',30000);setMoneyVal('f-otros',0);
+  renderBarras();renderPersonal();renderBaristasForm();
+  renderAlquiler();renderDelicates();renderSouvenirs();
+  document.getElementById('bebidas-panel').style.display='none';
+  actualizarToggleTrans();calcCot();toast('Formulario limpiado');
+}
 function guardarCot(){
   const b=DEF_BARRAS.find(x=>x.id===barraActiva);
   if(!b){toast('Selecciona un tipo de barra');return;}
@@ -1659,6 +1683,8 @@ function guardarCot(){
   };
   S.cotizaciones.unshift(cot);
   saveS();toast('✅ '+cot.id+' guardada');renderDash();
+  // Reset form after saving
+  setTimeout(resetCotizacion,500);
 }
 
 function calcListaCompras(bebidas,personas,dias){
@@ -1706,7 +1732,7 @@ function genPDF(c){
     <div style="position:relative;z-index:1">
 
     <!-- HOJAS DORADAS - header completo sin margen -->
-    ${iHojas?`<div style="margin:-32px -34px 16px -34px"><img src="${iHojas}" style="width:100%;height:70px;object-fit:cover;object-position:center;display:block;opacity:0.92"></div>`:''}
+    ${iHojas?`<div style="margin:-32px -34px 16px -34px"><img src="${iHojas}" style="width:100%;height:15px;object-fit:cover;object-position:top;display:block;opacity:0.85"></div>`:''}
 
     <!-- ENCABEZADO: logo izq + sellos der -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #8B1A1A">
@@ -1921,7 +1947,65 @@ function verPDF(){
   document.getElementById('pdf-content').innerHTML=genPDF(tmp);
   openM('mo-pdf');
 }
-function verCot(id){const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;cotVerID=id;document.getElementById('ver-content').innerHTML=genPDF(c)+(c.baristas&&c.baristas.length?`<div style="background:var(--cream);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px"><strong>👤 Baristas asignados:</strong> ${c.baristas.join(', ')}</div>`:'')+genDesglose(c);openM('mo-ver');}
+function verCot(id){
+  const c=S.cotizaciones.find(x=>x.id===id);if(!c)return;
+  cotVerID=id;
+  const dias=Math.max(1,c.dias||1);
+  // Build baristas-per-day editor
+  let baristasHTML='<div style="background:var(--cream);border-radius:10px;padding:14px;margin-top:14px">';
+  baristasHTML+='<div style="font-size:13px;font-weight:700;color:var(--coffee);margin-bottom:10px">👤 Baristas por día</div>';
+  // Init baristasPorDia if not set
+  if(!c.baristasPorDia||c.baristasPorDia.length!==dias){
+    c.baristasPorDia=Array.from({length:dias},(_,i)=>({dia:i+1,baristas:c.baristas||[]}));
+  }
+  for(let d=0;d<dias;d++){
+    const fechaDia=calcFechaFin(c.fecha,1);
+    const fd=new Date(c.fecha+'T12:00:00');fd.setDate(fd.getDate()+d);
+    const fdStr=fd.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'});
+    const bds=c.baristasPorDia[d].baristas||[];
+    baristasHTML+=`<div style="margin-bottom:10px;padding:10px;background:var(--white);border-radius:8px;border:1px solid var(--cream3)">
+      <div style="font-size:12px;font-weight:600;color:var(--coffee);margin-bottom:6px">Día ${d+1} — ${fdStr}</div>
+      <div id="bp-tags-${id}-${d}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;min-height:10px">
+        ${bds.map((b,bi)=>`<span style="background:var(--sage);color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;display:flex;align-items:center;gap:5px">${b}<button onclick="quitarBaristaCalendario('${id}',${d},${bi})" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:11px">✕</button></span>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px">
+        <input id="bp-input-${id}-${d}" type="text" placeholder="Nombre del barista" style="flex:1;padding:5px 9px;font-size:12px;border:1.5px solid var(--cream3);border-radius:7px" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarBaristaCalendario('${id}',${d});}">
+        <button class="btn btn-outline btn-xs" onclick="agregarBaristaCalendario('${id}',${d})">+ Añadir</button>
+      </div>
+    </div>`;
+  }
+  baristasHTML+=`<div class="btn-group no-print" style="margin-top:4px"><button class="btn btn-sage btn-sm" onclick="guardarBaristasPorDia('${id}')">💾 Guardar baristas</button></div></div>`;
+  document.getElementById('ver-content').innerHTML=genPDF(c)+baristasHTML+genDesglose(c);
+  openM('mo-ver');
+}
+function agregarBaristaCalendario(cotId,dia){
+  const inp=document.getElementById(`bp-input-${cotId}-${dia}`);
+  if(!inp||!inp.value.trim())return;
+  const c=S.cotizaciones.find(x=>x.id===cotId);if(!c)return;
+  if(!c.baristasPorDia)c.baristasPorDia=[];
+  if(!c.baristasPorDia[dia])c.baristasPorDia[dia]={dia:dia+1,baristas:[]};
+  c.baristasPorDia[dia].baristas.push(inp.value.trim());
+  inp.value='';
+  // Re-render tags
+  const tags=document.getElementById(`bp-tags-${cotId}-${dia}`);
+  if(tags){
+    const bds=c.baristasPorDia[dia].baristas;
+    tags.innerHTML=bds.map((b,bi)=>`<span style="background:var(--sage);color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;display:flex;align-items:center;gap:5px">${b}<button onclick="quitarBaristaCalendario('${cotId}',${dia},${bi})" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:11px">✕</button></span>`).join('');
+  }
+}
+function quitarBaristaCalendario(cotId,dia,idx){
+  const c=S.cotizaciones.find(x=>x.id===cotId);if(!c||!c.baristasPorDia)return;
+  c.baristasPorDia[dia].baristas.splice(idx,1);
+  const tags=document.getElementById(`bp-tags-${cotId}-${dia}`);
+  if(tags){
+    const bds=c.baristasPorDia[dia].baristas;
+    tags.innerHTML=bds.map((b,bi)=>`<span style="background:var(--sage);color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;display:flex;align-items:center;gap:5px">${b}<button onclick="quitarBaristaCalendario('${cotId}',${dia},${bi})" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:11px">✕</button></span>`).join('');
+  }
+}
+function guardarBaristasPorDia(cotId){
+  const c=S.cotizaciones.find(x=>x.id===cotId);if(!c)return;
+  saveS();toast('✅ Baristas guardados');
+}
 function irChecklist(){closeM('mo-ver');const c=S.cotizaciones.find(x=>x.id===cotVerID);if(c){document.getElementById('ev-cot-sel').value=c.id;cargarCot();}showPage('evento');}
 
 // ═══════════════════ LISTA COTIZACIONES ═══════════════════
@@ -2263,21 +2347,53 @@ function fillEvSel(){
 }
 function cargarCot(){
   const id=document.getElementById('ev-cot-sel').value;
-  if(!id){evItems=[];renderSalida();return;}
+  if(!id){evItems=[];evEquipos=[];renderSalida();return;}
   const cot=S.cotizaciones.find(c=>c.id===id);if(!cot)return;
   document.getElementById('ev-nombre').value=cot.cliente+' — '+cot.barraName;
-  document.getElementById('ev-cobrado').value=cot.precioFinal||'';
-  // Cargar lista de compras calculada desde recetas
-  if(cot.listaCompras&&cot.listaCompras.length){
+  if(document.getElementById('ev-cobrado')) document.getElementById('ev-cobrado').value=cot.precioFinal||'';
+  // Calcular insumos desde recetas de las bebidas seleccionadas
+  const totales={};
+  const personas=cot.personas||0;const dias=cot.dias||1;
+  (cot.bebidas||[]).filter(b=>!b.custom).forEach(bev=>{
+    const rec=S.recetas.find(r=>r.id===bev.id);
+    if(rec&&Array.isArray(rec.ingredientes)){
+      rec.ingredientes.forEach(ing=>{
+        if(!totales[ing.insId])totales[ing.insId]=0;
+        totales[ing.insId]+=ing.cant*personas*dias*1.1; // +10% merma
+      });
+    }
+  });
+  // Convertir a paquetes
+  evItems=Object.keys(totales).map(insId=>{
+    const inv=S.inventario.find(i=>i.id===insId);if(!inv)return null;
+    const pc=inv.paqCant||1;
+    const cantPaq=Math.ceil((totales[insId]/pc)*10)/10;
+    return {id:insId,nombre:inv.nombre,unidad:inv.unidad,paqNom:inv.paqNom||'und',paqCant:pc,salida:cantPaq,retorno:0};
+  }).filter(Boolean);
+  // Si no hay recetas con ingredientes, usar listaCompras
+  if(!evItems.length&&cot.listaCompras&&cot.listaCompras.length){
     evItems=cot.listaCompras.map(item=>({
-      id:item.id,nombre:item.nombre,
-      unidad:item.unidad||'',paqNom:item.paqNom||'und',paqCant:item.paqCant||1,
+      id:item.id,nombre:item.nombre,unidad:item.unidad||'',
+      paqNom:item.paqNom||'und',paqCant:item.paqCant||1,
       salida:item.cantPaq||0,retorno:0
     }));
+  }
+  // Auto-cargar equipos desde maquinaria usada en las recetas de bebidas
+  const maqIds=new Set();
+  (cot.bebidas||[]).filter(b=>!b.custom).forEach(bev=>{
+    const rec=S.recetas.find(r=>r.id===bev.id);
+    if(rec&&Array.isArray(rec.maquinas)) rec.maquinas.forEach(rm=>maqIds.add(rm.maqId));
+  });
+  if(maqIds.size>0){
+    evEquipos=Array.from(maqIds).map(mid=>{
+      const m=S.maquinaria.find(x=>x.id===mid);if(!m)return null;
+      return {id:m.id,nombre:m.nombre,cat:'Maquinaria',salida:m.cantidad||1,retorno:0,disponible:m.cantidad||1};
+    }).filter(Boolean);
   } else {
-    evItems=[];
+    evEquipos=[];
   }
   renderSalida();
+  toast('✅ Insumos y equipos cargados desde la cotización');
 }
 function addEvItem(){
   const ins=S.inventario.filter(i=>i.cat==='Insumo');
