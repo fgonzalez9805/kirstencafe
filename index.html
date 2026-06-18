@@ -775,7 +775,7 @@ input.hi{background:#fffbe6;border-color:var(--gold)}
 <div class="mo" id="mo-ins"><div class="modal"><button class="mc" onclick="closeM('mo-ins')">✕</button>
   <div class="modal-title" id="ins-title">Añadir insumo</div><input type="hidden" id="ins-eid">
   <div class="fr"><div class="fg"><label>Nombre</label><input id="ins-nom" type="text"></div><div class="fg"><label>Categoría</label><select id="ins-cat"><option>Insumo</option><option>Maquinaria</option><option>Elementos</option></select></div></div>
-  <div class="fr"><div class="fg"><label>Unidad base</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por <strong>paquete/bolsa</strong> (COP)</label><input id="ins-costo-paq" type="text" inputmode="numeric" oninput="calcInsPreview()" placeholder="Costo del paquete"></div></div>
+  <div class="fr"><div class="fg"><label>Unidad base</label><select id="ins-uni"><option>gramo</option><option>ml</option><option>unidad</option><option>kg</option><option>litro</option></select></div><div class="fg"><label>Costo por <strong>paquete/bolsa</strong> (COP)</label><input id="ins-costo-paq" type="number" min="0" step="1" oninput="calcInsPreview()" placeholder="Ej: 15000"></div></div>
   <div class="fr"><div class="fg"><label>Nombre del paquete (bolsa, caja...)</label><input id="ins-paqnom" type="text" placeholder="paquete"></div><div class="fg"><label>Unidades base por paquete</label><input id="ins-paqcant" type="number" min="1" value="1" oninput="calcInsPreview()"></div></div>
   <div id="ins-preview" style="font-size:12px;color:var(--sage);margin-bottom:10px"></div>
   <div class="fr"><div class="fg"><label>Stock actual (paquetes)</label><input id="ins-stock" type="number" min="0" step="0.5" value="0"></div><div class="fg"><label>Stock mínimo (paquetes)</label><input id="ins-min" type="number" min="0" step="0.5" value="0"></div></div>
@@ -2807,7 +2807,7 @@ function elimRec(id){if(!confirm('¿Eliminar?'))return;S.recetas=S.recetas.filte
 
 // ═══════════════════ CRUD INSUMOS ═══════════════════
 function calcInsPreview(){
-  const costoPaq=moneyVal('ins-costo-paq');
+  const costoPaq=parseFloat(document.getElementById('ins-costo-paq').value)||0;
   const pc=+document.getElementById('ins-paqcant').value||1;
   const pn=document.getElementById('ins-paqnom').value||'paquete';
   const costoUnit=pc>0?costoPaq/pc:0;
@@ -2822,13 +2822,13 @@ function editIns(id){
   document.getElementById('ins-title').textContent='Editar: '+item.nombre;
   document.getElementById('ins-eid').value=id;document.getElementById('ins-nom').value=item.nombre;
   document.getElementById('ins-cat').value=item.cat;document.getElementById('ins-uni').value=item.unidad;
-  setMoneyVal('ins-costo-paq',(item.costoPaq||item.costo*(item.paqCant||1)));document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
+  document.getElementById('ins-costo-paq').value=(item.costoPaq||item.costo*(item.paqCant||1));document.getElementById('ins-paqnom').value=item.paqNom||'paquete';
   document.getElementById('ins-paqcant').value=item.paqCant||1;document.getElementById('ins-stock').value=item.stock||0;
   document.getElementById('ins-min').value=item.minimo||0;calcInsPreview();openM('mo-ins');
 }
 function guardarIns(){
   const eid=document.getElementById('ins-eid').value;const nom=document.getElementById('ins-nom').value.trim();if(!nom){toast('Ingresa el nombre');return;}
-  const costoPaqIns=moneyVal('ins-costo-paq');
+  const costoPaqIns=parseFloat(document.getElementById('ins-costo-paq').value)||0;
   const paqCantIns=+document.getElementById('ins-paqcant').value||1;
   const costoUnitIns=paqCantIns>0?costoPaqIns/paqCantIns:0;
   const data={nombre:nom,cat:document.getElementById('ins-cat').value,unidad:document.getElementById('ins-uni').value,costo:costoUnitIns,costoPaq:costoPaqIns,paqNom:document.getElementById('ins-paqnom').value||'paquete',paqCant:+document.getElementById('ins-paqcant').value||1,stock:parseFloat(document.getElementById('ins-stock').value)||0,minimo:parseFloat(document.getElementById('ins-min').value)||0};
@@ -3066,7 +3066,7 @@ function setupMoneyInputs(){
   const moneyIds=[
     'f-transporte','f-imprevistos','f-otros','f-logistico',
     'ec-trans','ec-imp','ec-otros',
-    'ins-costo-paq','maq-val','rol-tar','beb-custom-costo',
+    'maq-val','rol-tar','beb-custom-costo',
   ];
   moneyIds.forEach(id=>{
     const el=document.getElementById(id);
@@ -3091,6 +3091,8 @@ function setupMoneyInputs(){
 function moneyVal(id){
   const el=document.getElementById(id);
   if(!el)return 0;
+  // type=number: use valueAsNumber directly
+  if(el.type==='number') return parseFloat(el.value)||0;
   const raw=el.value.replace(/\./g,'').replace(/,/g,'').replace(/[^\d]/g,'');
   return raw?parseInt(raw,10):0;
 }
