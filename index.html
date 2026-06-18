@@ -2816,7 +2816,7 @@ function calcInsPreview(){
     ?`<span style="color:var(--sage)">1 ${pn} = ${fmt(costoPaq)} · Costo/unidad base: <strong>${fmt(costoUnit)}</strong></span>`
     :'';
 }
-function abrirAddIns(){document.getElementById('ins-title').textContent='Añadir insumo';document.getElementById('ins-eid').value='';document.getElementById('ins-nom').value='';document.getElementById('ins-cat').value='Insumo';document.getElementById('ins-uni').value='unidad';document.getElementById('ins-costo').value='';document.getElementById('ins-paqnom').value='paquete';document.getElementById('ins-paqcant').value='1';document.getElementById('ins-preview').textContent='';document.getElementById('ins-stock').value='0';document.getElementById('ins-min').value='0';openM('mo-ins');}
+function abrirAddIns(){document.getElementById('ins-title').textContent='Añadir insumo';document.getElementById('ins-eid').value='';document.getElementById('ins-nom').value='';document.getElementById('ins-cat').value='Insumo';document.getElementById('ins-uni').value='unidad';document.getElementById('ins-costo-paq').value='';document.getElementById('ins-paqnom').value='paquete';document.getElementById('ins-paqcant').value='1';document.getElementById('ins-preview').textContent='';document.getElementById('ins-stock').value='0';document.getElementById('ins-min').value='0';openM('mo-ins');}
 function editIns(id){
   const item=S.inventario.find(i=>i.id===id);if(!item)return;
   document.getElementById('ins-title').textContent='Editar: '+item.nombre;
