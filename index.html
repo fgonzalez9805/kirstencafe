@@ -1089,6 +1089,11 @@ function recalcularCostosRecetas(){
 // ═══════════════════ HELPERS ═══════════════════
 const fmt=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0);
 const fmtNum=n=>new Intl.NumberFormat('es-CO').format(n||0);
+function esc(str){
+  const d=document.createElement('div');
+  d.textContent=str==null?'':String(str);
+  return d.innerHTML;
+}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).substr(2,4);
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
 function openM(id){document.getElementById(id).classList.add('open');}
@@ -1130,8 +1135,8 @@ function showPage(id){
   if(map[id]!==undefined)document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
   if(id==='cotizacion'){
     barraActiva=null;bebidasSeleccionadas=[];personal_cot=[];transIncluidoNew=true;
-    alquilerItems=[];delicateItems=[];souvenirItems=[];
-    renderBarras();renderPersonal();renderAlquiler();renderDelicates();renderSouvenirs();
+    alquilerItems=[];delicateItems=[];souvenirItems=[];baristasForm=[];
+    renderBarras();renderPersonal();renderAlquiler();renderDelicates();renderSouvenirs();renderBaristasForm();
     document.getElementById('bebidas-panel').style.display='none';
     actualizarToggleTrans();
     setMoneyVal('f-transporte',80000);setMoneyVal('f-imprevistos',30000);setMoneyVal('f-otros',0);
@@ -1713,6 +1718,8 @@ function guardarCot(){
     saludo:document.getElementById('f-saludo').value,
     requerimientos:document.getElementById('f-requerimientos').value,
     vajilla:document.getElementById('f-vajilla').value,
+    notas:document.getElementById('f-notas').value,
+    baristas:[...baristasForm],
     alquiler:JSON.parse(JSON.stringify(alquilerItems)),
     delicates:JSON.parse(JSON.stringify(delicateItems)),
     souvenirs:JSON.parse(JSON.stringify(souvenirItems)),
@@ -2073,7 +2080,7 @@ function renderCots(filtro=''){
   const mpct=c=>c.costoTotal>0?Math.round(((c.precioFinal-c.costoTotal)/c.precioFinal)*100):0;
   tb.innerHTML=cots.map(c=>`<tr>
     <td><span class="tag tgray" style="font-size:10px">${c.id}</span></td>
-    <td><strong>${c.cliente}</strong><div style="font-size:10.5px;color:var(--muted)">${c.ciudad||''}</div></td>
+    <td><strong>${esc(c.cliente)}</strong><div style="font-size:10.5px;color:var(--muted)">${esc(c.ciudad||'')}</div></td>
     <td style="font-size:11.5px">${c.barraName}</td>
     <td style="font-size:11.5px">${c.fecha||'—'}</td>
     <td>${fmtNum(c.personas)}</td>
@@ -2589,7 +2596,9 @@ function cerrarEvento(){
     if(retorno>0) S.movimientos.push({fecha:new Date().toISOString(),id:eq.id,item:eq.nombre,tipo:'RETORNO_EVENTO',cantidad:retorno,motivo:nom,notas:'Retorno equipo'});
   });
   const cot=cotId?S.cotizaciones.find(c=>c.id===cotId):null;
-  const costoTotal=cot?cot.costoTotal:costoRealIns;
+  // Usa el costo COTIZADO para personal/depreciación/etc (no se remiden en el checklist),
+  // pero sustituye el costo de insumos cotizado por el REAL medido en este evento.
+  const costoTotal=cot?(cot.costoTotal-(cot.costoIns||0)+costoRealIns):costoRealIns;
   const ev={id:'EV-'+uid(),nombre:nom,fecha,cotId,items:JSON.parse(JSON.stringify(evItems)),equipos:JSON.parse(JSON.stringify(evEquipos)),cobrado,costoRealIns,costoTotal,ganancia:cobrado-costoTotal,creado:new Date().toISOString()};
   S.eventos.push(ev);
   if(cot)cot.estado='Completado';
@@ -3064,7 +3073,7 @@ function renderDash(){
   document.getElementById('badge-alertas').textContent=al.length;
   const rc=document.getElementById('d-recientes');
   if(!S.cotizaciones.length)rc.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Aún no hay cotizaciones</div></div>';
-  else rc.innerHTML=`<table style="width:100%;font-size:12.5px"><tbody>${S.cotizaciones.slice(0,5).map(c=>`<tr><td style="padding:6px 0;border-bottom:1px solid var(--cream2)"><strong>${c.cliente}</strong><div style="font-size:10.5px;color:var(--muted)">${c.barraName} · ${c.fecha}</div></td><td style="padding:6px 0;border-bottom:1px solid var(--cream2);text-align:right"><strong>${fmt(c.precioFinal)}</strong><div><span class="tag ${c.estado==='Confirmado'?'tgold':c.estado==='En proceso'?'tg':c.estado==='Completado'?'tb':c.estado==='Cancelado'?'tr':'tgray'}" style="font-size:10px;cursor:pointer" onclick="abrirModalEstado('${c.id}')">${c.estado}</span></div></td></tr>`).join('')}</tbody></table>`;
+  else rc.innerHTML=`<table style="width:100%;font-size:12.5px"><tbody>${S.cotizaciones.slice(0,5).map(c=>`<tr><td style="padding:6px 0;border-bottom:1px solid var(--cream2)"><strong>${esc(c.cliente)}</strong><div style="font-size:10.5px;color:var(--muted)">${c.barraName} · ${c.fecha}</div></td><td style="padding:6px 0;border-bottom:1px solid var(--cream2);text-align:right"><strong>${fmt(c.precioFinal)}</strong><div><span class="tag ${c.estado==='Confirmado'?'tgold':c.estado==='En proceso'?'tg':c.estado==='Completado'?'tb':c.estado==='Cancelado'?'tr':'tgray'}" style="font-size:10px;cursor:pointer" onclick="abrirModalEstado('${c.id}')">${c.estado}</span></div></td></tr>`).join('')}</tbody></table>`;
   const rp=document.getElementById('d-reponer');
   if(!al.length)rp.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Todos los insumos en orden</div></div>';
   else rp.innerHTML=`<table style="width:100%;font-size:12.5px"><tbody>${al.slice(0,6).map(i=>`<tr><td style="padding:5px 0;border-bottom:1px solid var(--cream2)">${i.nombre}</td><td style="padding:5px 0;border-bottom:1px solid var(--cream2);text-align:right"><span class="tag tr" style="font-size:10px">${fmtNum(i.stock||0)}/${fmtNum(i.minimo||0)} ${i.paqNom||'und'}</span></td></tr>`).join('')}</tbody></table>`;
